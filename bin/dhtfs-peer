@@ -1,0 +1,37 @@
+#!/usr/bin/env python3
+
+import argparse
+import logging
+
+from dhtfs.server import Server
+
+
+def run():
+    parser = argparse.ArgumentParser(
+        description='Kademlia DHT peer for dhtfs.')
+    parser.add_argument('-b', '--bootstrap', type=str,
+                        help='Comma-separated list of DHT bootstrap peers')
+    parser.add_argument('-d', '--database', type=str,
+                        help='Path for storing the database')
+    parser.add_argument('-D', '--debug', action='store_true',
+                        help='Enable debugging output')
+    parser.add_argument('-H', '--host', type=str,
+                        help='Host to listen on (default: 0.0.0.0)')
+    parser.add_argument('-p', '--dht-port', type=int,
+                        help='Port to listen on for DHT requests')
+    parser.add_argument('-P', '--rpc-port', type=int,
+                        help='Port to listen on for RPC requests')
+    args = parser.parse_args()
+
+    # Setup logging
+    if args.debug:
+        loglevel = logging.DEBUG
+    else:
+        loglevel = logging.INFO
+    logging.basicConfig(level=loglevel, format='%(asctime)s: %(message)s')
+
+    Server(args).start()
+
+
+if __name__ == '__main__':
+    run()
