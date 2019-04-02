@@ -11,6 +11,3 @@ thrift = "*"
 plyvel = "*"
 appdirs = "*"
 dhtfs-peer = {editable = true,path = "."}
-
-[requires]
-python_version = "3.7"
