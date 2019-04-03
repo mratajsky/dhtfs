@@ -1,8 +1,8 @@
 import logging
 import multiprocessing
 import os
-import threading
 import queue
+import threading
 
 import plyvel
 
@@ -18,6 +18,8 @@ __all__ = ['RPC']
 
 DATABASE_DIR_MODE = 0o755
 
+logger = logging.getLogger(__name__)
+
 
 class Handler:
     def __init__(self, db, pipe, results, condition):
@@ -27,7 +29,7 @@ class Handler:
         self._condition = condition
 
     def FindClosestPeers(self, key):
-        logging.debug(f"RPC: FindClosestPeers({key.hex()})")
+        logger.debug(f"RPC: FindClosestPeers({key.hex()})")
         ident = threading.get_ident()
         # Ask the DHT process to do the lookup and use the thread identifier to
         # find the result when it's sent back
@@ -38,16 +40,16 @@ class Handler:
         return [Peer(n.ip, n.port) for n in result]
 
     def Put(self, key, value):
-        logging.debug(f"RPC: Put({key.hex()}, ...)")
+        logger.debug(f"RPC: Put({key.hex()}, ...)")
         self._db.put(key, value)
 
     def Add(self, key, value):
-        # logging.debug(f"RPC: Add({key.hex()}, ...)")
+        # logger.debug(f"RPC: Add({key.hex()}, ...)")
         # TODO: add to leaf bucket
         pass
 
     def Get(self, key):
-        logging.debug(f"RPC: Get({key.hex()})")
+        logger.debug(f"RPC: Get({key.hex()})")
         value = self._db.get(key)
         if value is None:
             # get() returns None when key is not in the database
@@ -64,26 +66,27 @@ class Handler:
 
     def _wait_for_result(self, wanted_ident):
         with self._condition:
-            while self._results.get(wanted_ident) == None:
+            while self._results.get(wanted_ident) is None:
                 self._condition.wait()
             return self._results.pop(wanted_ident)
 
 
 class RPC:
-    def __init__(self, port, database, pipe, host='0.0.0.0'):
-        self._host = host
-        self._port = port
-        # Make sure the parent folder of the database folder exists
-        try:
-            os.makedirs(database, mode=DATABASE_DIR_MODE, exist_ok=True)
-        except Exception as e:
-            logging.error(f'Failed to create directory {database}')
-            raise e
-        self._db = plyvel.DB(database, create_if_missing=True)
+    def __init__(self, pipe, options):
         self._dht_pipe = pipe
+        self._host = options.host
+        self._port = options.port
         self._process_queue = multiprocessing.Queue()
         self._process = multiprocessing.Process(
             target=self._worker, args=(self._process_queue,))
+
+        # Make sure the parent folder of the database folder exists
+        os.makedirs(options.database,
+                    mode=DATABASE_DIR_MODE,
+                    exist_ok=True)
+        self._db = plyvel.DB(options.database, create_if_missing=True)
+
+        logger.debug(f'Using database directory: {options.database}')
 
     @property
     def host(self):

@@ -6,16 +6,19 @@ from kademlia.network import Server
 from kademlia.node import Node
 from kademlia.crawling import NodeSpiderCrawl
 
+logger = logging.getLogger(__name__)
+
 
 class DHT:
-    def __init__(self, port, pipe, host='0.0.0.0', bootstrap_peers=None):
-        self._host = host
-        self._port = port
-        self._node = Server()
+    def __init__(self, pipe, options):
         self._rpc_pipe = pipe
-        self._bootstrap_peers = bootstrap_peers
+        self._host = options.host
+        self._port = options.port
+        self._bootstrap_peers = options.bootstrap
+        self._node = Server(
+            ksize=options.ksize,
+            alpha=options.alpha, node_id=options.node_id)
         self._running = False
-        self._thread = None
 
     @property
     def host(self):
@@ -39,7 +42,7 @@ class DHT:
             return
         self._running = True
         await self._listen(self._host, self._port)
-        if not self._bootstrap_peers is None:
+        if self._bootstrap_peers is not None:
             await self._bootstrap(self._bootstrap_peers)
 
         def worker(loop):
@@ -53,9 +56,8 @@ class DHT:
                     break
         # Multiprocessing pipe doesn't integrate with asyncio, use a separate
         # thread to read RPC requests and schedule a coroutine in the asyncio loop
-        self._thread = threading.Thread(
-            target=worker, args=(asyncio.get_event_loop(),))
-        self._thread.start()
+        threading.Thread(target=worker,
+                         args=(asyncio.get_event_loop(),)).start()
 
     def stop(self):
         '''Stop the DHT service.'''
