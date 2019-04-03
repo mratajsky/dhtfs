@@ -54,7 +54,7 @@ class DHT:
         # Multiprocessing pipe doesn't integrate with asyncio, use a separate
         # thread to read RPC requests and schedule a coroutine in the asyncio loop
         self._thread = threading.Thread(
-            target=worker, args=(asyncio.get_running_loop(),))
+            target=worker, args=(asyncio.get_event_loop(),))
         self._thread.start()
 
     def stop(self):
