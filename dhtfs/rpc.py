@@ -1,5 +1,6 @@
 import logging
 import multiprocessing
+import os
 import threading
 import queue
 
@@ -12,6 +13,10 @@ from thrift.server import TServer, TNonblockingServer
 
 from .thriftrpc.Rpc import Processor
 from .thriftrpc.ttypes import Peer, StorageException
+
+__all__ = ['RPC']
+
+DATABASE_DIR_MODE = 0o755
 
 
 class Handler:
@@ -68,6 +73,12 @@ class RPC:
     def __init__(self, port, database, pipe, host='0.0.0.0'):
         self._host = host
         self._port = port
+        # Make sure the parent folder of the database folder exists
+        try:
+            os.makedirs(database, mode=DATABASE_DIR_MODE, exist_ok=True)
+        except Exception as e:
+            logging.error(f'Failed to create directory {database}')
+            raise e
         self._db = plyvel.DB(database, create_if_missing=True)
         self._dht_pipe = pipe
         self._process_queue = multiprocessing.Queue()
