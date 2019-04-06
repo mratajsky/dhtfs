@@ -25,6 +25,18 @@ class Server:
         self._rpc = RPC(self._conn2, options_rpc)
         self._running = False
 
+    @property
+    def dht(self):
+        return self._dht
+
+    @property
+    def rpc(self):
+        return self._rpc
+
+    @property
+    def running(self):
+        return self._running
+
     def start(self):
         '''Start the server.'''
         if self._running:

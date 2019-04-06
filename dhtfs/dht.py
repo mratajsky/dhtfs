@@ -29,6 +29,10 @@ class DHT:
         return self._port
 
     @property
+    def node_id(self):
+        return self._node.node.id
+
+    @property
     def bootstrap_peers(self):
         return self._bootstrap_peers
 

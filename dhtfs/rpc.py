@@ -4,8 +4,6 @@ import os
 import queue
 import threading
 
-import plyvel
-
 from thrift.transport import TSocket
 from thrift.transport import TTransport
 from thrift.protocol import TBinaryProtocol
@@ -13,10 +11,6 @@ from thrift.server import TServer, TNonblockingServer
 
 from .thriftrpc.Rpc import Processor
 from .thriftrpc.ttypes import Peer, StorageException
-
-__all__ = ['RPC']
-
-DATABASE_DIR_MODE = 0o755
 
 logger = logging.getLogger(__name__)
 
@@ -74,21 +68,12 @@ class Handler:
 class RPC:
     def __init__(self, pipe, options):
         self._dht_pipe = pipe
+        self._db = options.database
         self._host = options.host
         self._port = options.port
         self._process_queue = multiprocessing.Queue()
         self._process = multiprocessing.Process(
             target=self._worker, args=(self._process_queue,))
-
-        # Make sure the database folder exists
-        os.makedirs(options.database,
-                    mode=DATABASE_DIR_MODE,
-                    exist_ok=True)
-        if options.database_clean:
-            plyvel.destroy_db(options.database)
-        self._db = plyvel.DB(options.database, create_if_missing=True)
-
-        logger.debug(f'Using database directory: {options.database}')
 
     @property
     def host(self):
