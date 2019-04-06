@@ -1,0 +1,106 @@
+#!/usr/bin/env python3
+
+import argparse
+import asyncio
+import copy
+import logging
+import multiprocessing
+import signal
+
+from dhtfs.server import Server, OptionsDHT, OptionsRPC
+from dhtfs.utils import *
+
+children = []
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description='Spawn a number of Kademlia DHT peers.')
+
+    parser.add_argument('peers', type=int, help='number of peers to spawn')
+
+    group = parser.add_argument_group('general options')
+    group.add_argument('--database-clean', action='store_true',
+                       help='start with an empty database')
+    group.add_argument('-H', '--host', type=str,
+                       help=f'host to listen on (default: {defaults.host})')
+    group.add_argument('-p', '--port', type=int,
+                       help='port to listen on at the first peer')
+    group.add_argument('-v', '--verbose', action='count',
+                       help='enable verbose output (use up to twice)')
+    parser.set_defaults(host=defaults.host, port=get_random_port())
+
+    group = parser.add_argument_group('DHT options')
+    group.add_argument('-a', '--alpha', type=int,
+                       help=f'the α value of Kademlia (default: {defaults.alpha})')
+    group.add_argument('-b', '--bootstrap', type=str,
+                       help='comma-separated list of DHT bootstrap peers')
+    group.add_argument('-i', '--node-id', type=str, nargs='*',
+                       help='node IDs as 20-byte hex numbers')
+    group.add_argument('-k', '--ksize', type=int,
+                       help=f'the K value of Kademlia (default: {defaults.ksize})')
+    group.set_defaults(alpha=defaults.alpha, ksize=defaults.ksize)
+
+    return parser.parse_args()
+
+
+def run():
+    args = parse_args()
+    setup_logging(args.verbose)
+
+    for i in range(args.peers):
+        peer_args = copy.copy(args)
+        peer_args.port = args.port + i
+        try:
+            node_id = parse_node_id(args.node_id[i])
+        except (IndexError, TypeError):
+            # Not enough node IDs given, pick a random one
+            node_id = None
+        peer_args.database, peer_args.node_id = setup_database(
+            peer_args.port,
+            node_id,
+            clean=args.database_clean)
+
+        if args.bootstrap is None and i == 0:
+            # If no bootstrap peer is given, bootstrap from the first peer
+            peer_args.bootstrap = None
+            args.bootstrap = f'{args.host}:{args.port}'
+
+        process = multiprocessing.Process(target=run_peer, args=(peer_args,))
+        process.start()
+        children.append(process)
+
+    loop = asyncio.get_event_loop()
+    # Call our stop() function when killed by a signal
+    for signame in ('SIGINT', 'SIGTERM'):
+        loop.add_signal_handler(getattr(signal, signame), stop)
+
+    loop.run_forever()
+
+
+def run_peer(args):
+    # Split up the service options
+    options_dht = OptionsDHT(
+        host=args.host,
+        port=args.port,
+        alpha=args.alpha,
+        ksize=args.ksize, node_id=args.node_id,
+        bootstrap=args.bootstrap)
+    options_rpc = OptionsRPC(
+        host=args.host,
+        port=args.port,
+        database=args.database)
+
+    Server(options_dht, options_rpc).start()
+
+
+def stop():
+    for child in children:
+        logging.debug(f'Terminating child {child.pid}')
+        child.terminate()
+        child.join()
+    asyncio.get_event_loop().stop()
+
+
+if __name__ == '__main__':
+    run()
