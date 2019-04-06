@@ -2,95 +2,52 @@
 
 import argparse
 import logging
-import os
-import random
-from collections import namedtuple
 
-import appdirs
-
-from dhtfs.server import Server
-
-# Defaults for missing command-line arguments
-DEFAULT_HOST = '0.0.0.0'
-DEFAULT_DHT_ALPHA = 2
-DEFAULT_DHT_KSIZE = 5
-
-OptionsDHT = namedtuple('OptionsDHT', [
-    'host', 'port', 'alpha', 'ksize', 'node_id', 'bootstrap'
-])
-OptionsRPC = namedtuple('OptionsRPC', [
-    'host', 'port', 'database', 'database_clean'
-])
-
-
-def get_default_database_path(port):
-    # This becomes some like /home/user/.cache/dhtfs/db-port
-    return os.path.join(appdirs.user_cache_dir(), 'dhtfs', f'db-{port}')
-
-
-def get_random_port():
-    '''Pick a random port from a reasonable range.'''
-    return random.randint(10000, 65000)
+from dhtfs.server import Server, OptionsDHT, OptionsRPC
+from dhtfs.utils import *
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
         description='Kademlia DHT peer for dhtfs.')
 
-    group = parser.add_argument_group('General options')
+    group = parser.add_argument_group('general options')
     group.add_argument('-H', '--host', type=str,
-                       help=f'Host to listen on (default: {DEFAULT_HOST})')
+                       help=f'host to listen on (default: {defaults.host})')
     group.add_argument('-p', '--port', type=int,
-                       help='Port to listen on for DHT and RPC requests')
+                       help='port to listen on for DHT and RPC requests')
     group.add_argument('-v', '--verbose', action='count',
-                       help='Enable verbose output (use up to twice)')
-    group.set_defaults(host=DEFAULT_HOST)
+                       help='enable verbose output (use up to twice)')
+    group.set_defaults(host=defaults.host, port=get_random_port())
 
     group = parser.add_argument_group('DHT options')
     group.add_argument('-a', '--alpha', type=int,
-                       help=f'The α value of Kademlia (default: {DEFAULT_DHT_ALPHA})')
+                       help=f'the α value of Kademlia (default: {defaults.alpha})')
     group.add_argument('-b', '--bootstrap', type=str,
-                       help='Comma-separated list of DHT bootstrap peers')
+                       help='comma-separated list of DHT bootstrap peers')
     group.add_argument('-i', '--node-id', type=str,
-                       help='Node ID as a 20-byte hex number')
+                       help='node ID as a 20-byte hex number')
     group.add_argument('-k', '--ksize', type=int,
-                       help=f'The K value of Kademlia (default: {DEFAULT_DHT_KSIZE})')
-    group.set_defaults(alpha=DEFAULT_DHT_ALPHA, ksize=DEFAULT_DHT_KSIZE)
+                       help=f'the K value of Kademlia (default: {defaults.ksize})')
+    group.set_defaults(alpha=defaults.alpha, ksize=defaults.ksize)
 
     group = parser.add_argument_group('RPC options')
     group.add_argument('-d', '--database', type=str,
-                       help='Path for storing the database')
+                       help='path for storing the database')
     group.add_argument('--database-clean', action='store_true',
-                       help='Start with an empty database')
+                       help='start with an empty database')
 
     return parser.parse_args()
 
 
-def parse_node_id(node_id):
-    if node_id is not None:
-        return bytes.fromhex(node_id)
-
-
 def run():
     args = parse_args()
-
-    # Setup logging
-    logformat = '[%(process)d] %(asctime)s: %(message)s'
-    if args.verbose:
-        if args.verbose > 1:
-            loglevel = logging.DEBUG
-        else:
-            loglevel = logging.INFO
-        logging.basicConfig(level=loglevel, format=logformat)
-    else:
-        logging.basicConfig(format=logformat)
-
-    port = args.port or get_random_port()
+    setup_logging(args.port, args.verbose)
 
     # Split up the service options
     options_dht = OptionsDHT(
         host=args.host,
-        port=port,
+        port=args.port,
         alpha=args.alpha,
         ksize=args.ksize, node_id=parse_node_id(args.node_id),
         bootstrap=args.bootstrap)
@@ -98,8 +55,8 @@ def run():
 
     options_rpc = OptionsRPC(
         host=args.host,
-        port=port,
-        database=args.database or get_default_database_path(port),
+        port=args.port,
+        database=args.database or get_default_database_path(args.port),
         database_clean=args.database_clean)
     logging.info(f'RPC port: {options_rpc.port}/tcp')
 

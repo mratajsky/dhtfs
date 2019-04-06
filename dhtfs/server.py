@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import signal
+from collections import namedtuple
 from contextlib import suppress
 from multiprocessing import Pipe
 
@@ -8,6 +9,13 @@ from .dht import DHT
 from .rpc import RPC
 
 logger = logging.getLogger(__name__)
+
+OptionsDHT = namedtuple('OptionsDHT', [
+    'host', 'port', 'alpha', 'ksize', 'node_id', 'bootstrap'
+])
+OptionsRPC = namedtuple('OptionsRPC', [
+    'host', 'port', 'database', 'database_clean'
+])
 
 
 class Server:
