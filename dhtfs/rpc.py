@@ -80,10 +80,12 @@ class RPC:
         self._process = multiprocessing.Process(
             target=self._worker, args=(self._process_queue,))
 
-        # Make sure the parent folder of the database folder exists
+        # Make sure the database folder exists
         os.makedirs(options.database,
                     mode=DATABASE_DIR_MODE,
                     exist_ok=True)
+        if options.database_clean:
+            plyvel.destroy_db(options.database)
         self._db = plyvel.DB(options.database, create_if_missing=True)
 
         logger.debug(f'Using database directory: {options.database}')

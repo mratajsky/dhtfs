@@ -19,7 +19,7 @@ OptionsDHT = namedtuple('OptionsDHT', [
     'host', 'port', 'alpha', 'ksize', 'node_id', 'bootstrap'
 ])
 OptionsRPC = namedtuple('OptionsRPC', [
-    'host', 'port', 'database'
+    'host', 'port', 'database', 'database_clean'
 ])
 
 
@@ -60,6 +60,8 @@ def parse_args():
     group = parser.add_argument_group('RPC options')
     group.add_argument('-d', '--database', type=str,
                        help='Path for storing the database')
+    group.add_argument('--database-clean', action='store_true',
+                       help='Start with an empty database')
 
     return parser.parse_args()
 
@@ -97,7 +99,8 @@ def run():
     options_rpc = OptionsRPC(
         host=args.host,
         port=port,
-        database=args.database or get_default_database_path(port))
+        database=args.database or get_default_database_path(port),
+        database_clean=args.database_clean)
     logging.info(f'RPC port: {options_rpc.port}/tcp')
 
     Server(options_dht, options_rpc).start()
