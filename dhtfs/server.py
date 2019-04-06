@@ -14,7 +14,7 @@ OptionsDHT = namedtuple('OptionsDHT', [
     'host', 'port', 'alpha', 'ksize', 'node_id', 'bootstrap'
 ])
 OptionsRPC = namedtuple('OptionsRPC', [
-    'host', 'port', 'database', 'database_clean'
+    'host', 'port', 'database'
 ])
 
 

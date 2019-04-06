@@ -40,7 +40,7 @@ def parse_args():
 
 def run():
     args = parse_args()
-    setup_logging(args.port, args.verbose)
+    setup_logging(args.verbose)
 
     if args.node_id is not None:
         args.node_id = parse_node_id(args.node_id)
@@ -54,15 +54,14 @@ def run():
         host=args.host,
         port=args.port,
         alpha=args.alpha,
-        ksize=args.ksize,
-        node_id=node_id,
+        ksize=args.ksize, node_id=node_id,
         bootstrap=args.bootstrap)
     logging.info(f'DHT port: {options_dht.port}/udp')
+
     options_rpc = OptionsRPC(
         host=args.host,
         port=args.port,
-        database=database,
-        database_clean=args.database_clean)
+        database=database)
     logging.info(f'RPC port: {options_rpc.port}/tcp')
 
     Server(options_dht, options_rpc).start()

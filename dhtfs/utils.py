@@ -74,8 +74,8 @@ def setup_database(port, node_id=None, path=None, clean=False):
     return database, node_id
 
 
-def setup_logging(port, verbosity):
-    logformat = f'[{port}] %(asctime)s: %(message)s'
+def setup_logging(verbosity):
+    logformat = '[%(process)d] %(asctime)s: %(message)s'
     if verbosity:
         if verbosity > 1:
             loglevel = logging.DEBUG
