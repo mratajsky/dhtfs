@@ -13,3 +13,4 @@ thrift = "*"
 plyvel = "*"
 appdirs = "*"
 dhtfs-peer = {editable = true,path = "."}
+python-dateutil = "*"
