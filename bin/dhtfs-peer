@@ -3,8 +3,9 @@
 import argparse
 import logging
 
-from dhtfs.server import Server, OptionsDHT, OptionsRPC
-from dhtfs.utils import *
+from dhtfs.peer.server import Server, OptionsDHT, OptionsRPC
+from dhtfs.peer.utils import *
+from dhtfs.utils import setup_logging
 
 
 def parse_args():
@@ -56,13 +57,12 @@ def run():
         alpha=args.alpha,
         ksize=args.ksize, node_id=node_id,
         bootstrap=args.bootstrap)
-    logging.info(f'DHT port: {options_dht.port}/udp')
-
     options_rpc = OptionsRPC(
         host=args.host,
         port=args.port,
         database=database)
-    logging.info(f'RPC port: {options_rpc.port}/tcp')
+
+    print(f'Starting peer on {args.host}:{args.port}')
 
     Server(options_dht, options_rpc).start()
 

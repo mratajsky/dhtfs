@@ -7,10 +7,10 @@ import threading
 from thrift.transport import TSocket
 from thrift.transport import TTransport
 from thrift.protocol import TBinaryProtocol
-from thrift.server import TServer, TNonblockingServer
+from thrift.server import TServer
 
-from .thriftrpc.Rpc import Processor
-from .thriftrpc.ttypes import Peer, StorageException
+from ..thrift.rpc.Rpc import Processor
+from ..thrift.rpc.ttypes import Peer, StorageException
 
 logger = logging.getLogger(__name__)
 
@@ -105,7 +105,7 @@ class RPC:
             processor = Processor(handler)
             transport = TSocket.TServerSocket(host=self._host, port=self._port)
             tfactory = TTransport.TBufferedTransportFactory()
-            pfactory = TBinaryProtocol.TBinaryProtocolFactory()
+            pfactory = TBinaryProtocol.TBinaryProtocolAcceleratedFactory()
 
             server = TServer.TThreadPoolServer(
                 processor, transport, tfactory, pfactory, daemon=True)

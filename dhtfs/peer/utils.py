@@ -11,8 +11,7 @@ __all__ = ['defaults',
            'get_default_database_path',
            'get_random_port',
            'parse_node_id',
-           'setup_database',
-           'setup_logging']
+           'setup_database']
 
 DEFAULT_HOST = '0.0.0.0'
 DEFAULT_ALPHA = 2
@@ -72,16 +71,3 @@ def setup_database(port, node_id=None, path=None, clean=False):
         database.put(b'dhtfs-node-id', node_id)
 
     return database, node_id
-
-
-def setup_logging(verbosity):
-    logformat = '[%(process)d] %(asctime)s: %(message)s'
-    if verbosity:
-        if verbosity > 1:
-            loglevel = logging.DEBUG
-        else:
-            loglevel = logging.INFO
-        logging.basicConfig(level=loglevel, format=logformat)
-    else:
-        # Use the default logging level
-        logging.basicConfig(format=logformat)

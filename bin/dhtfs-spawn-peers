@@ -7,8 +7,9 @@ import logging
 import multiprocessing
 import signal
 
-from dhtfs.server import Server, OptionsDHT, OptionsRPC
-from dhtfs.utils import *
+from dhtfs.peer.server import Server, OptionsDHT, OptionsRPC
+from dhtfs.peer.utils import *
+from dhtfs.utils import setup_logging
 
 children = []
 
@@ -90,6 +91,8 @@ def run_peer(args):
         host=args.host,
         port=args.port,
         database=args.database)
+
+    print(f'Starting peer on {args.host}:{args.port}')
 
     Server(options_dht, options_rpc).start()
 

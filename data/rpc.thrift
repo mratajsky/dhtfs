@@ -1,5 +1,4 @@
-namespace c_glib dhtfs
-namespace py dhtfs
+namespace c_glib Thrift
 
 struct Peer {
 	1: string host,
