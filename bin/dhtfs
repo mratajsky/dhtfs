@@ -1,0 +1,172 @@
+#!/usr/bin/env python3
+
+import argparse
+import datetime
+import logging
+import os
+import random
+import shutil
+
+from dateutil.parser import parse as dateutil_parse
+from kademlia.utils import digest
+
+from dhtfs.utils import *
+from dhtfs.client import Client
+from dhtfs.thrift.metadata.ttypes import FileSystem, Inode
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description='Tool for creating, mounting and diagnostics of dhtfs.')
+
+    group = parser.add_argument_group('general options')
+    group.add_argument('-H', '--host', type=str,
+                       help=f'DHT peer host (default: {defaults.host})')
+    group.add_argument('-n', '--name', type=str,
+                       help=f'file system name (default: {defaults.name})')
+    group.add_argument('-p', '--port', type=str,
+                       help=f'DHT peer port (default: {defaults.port})')
+    group.add_argument('-v', '--verbose', action='count',
+                       help='enable verbose output (use up to twice)')
+    group.set_defaults(host=defaults.host, port=defaults.port,
+                       name=defaults.name)
+
+    commands = parser.add_subparsers(title='commands', dest='command',
+                                     required=True)
+
+    # Create command
+    cparser = commands.add_parser('create')
+    cparser.add_argument('-b', '--block-size', type=int,
+                         help=f'block size in bytes (default: {defaults.block_size})')
+    cparser.add_argument('-m', '--model', type=int,
+                         help=f'model to use (default: {defaults.model})')
+    cparser.add_argument('-r', '--root', type=int,
+                         help=f'root inode number (default: random)')
+    cparser.set_defaults(block_size=defaults.block_size,
+                         model=defaults.model)
+
+    # Mount command
+    cparser = commands.add_parser('mount')
+    cparser.add_argument('-a', '--at', type=dateutil_parse,
+                         help='date and time of the file system snapshot')
+    cparser.add_argument('-c', '--cache', type=str,
+                         help='path to the caching storage')
+    cparser.add_argument('-d', '--debug', action='store_true',
+                         help='enable debugging in dhtfs-fuse')
+    cparser.add_argument('-e', '--exec', type=str,
+                         help='custom path to the dhtfs-fuse executable')
+    cparser.add_argument('mountpoint', type=str,
+                         help='file system mounting point')
+
+    # DHT commands
+    cparser = commands.add_parser('get-key')
+    cparser.add_argument('key', type=str, help='DHT key to lookup')
+    cparser.add_argument('-t', '--type', type=str,
+                         help='type of item (one of: filesystem, inode)',
+                         choices=['filesystem', 'inode'])
+    cparser.set_defaults(command='dht-get', get='key', hash=False)
+
+    cparser = commands.add_parser('get-key-hash')
+    cparser.add_argument('key', type=str, help='DHT key to lookup')
+    cparser.add_argument('-t', '--type', type=str,
+                         help='type of item (one of: filesystem, inode)',
+                         choices=['filesystem', 'inode'])
+    cparser.set_defaults(command='dht-get', get='key', hash=True)
+
+    cparser = commands.add_parser('get-filesystem')
+    cparser.set_defaults(command='dht-get', get='filesystem')
+
+    cparser = commands.add_parser('get-inode')
+    cparser.add_argument('inode', type=str, help='inode number')
+    cparser.set_defaults(command='dht-get', get='inode')
+
+    return parser.parse_args()
+
+
+def create_client(host, port):
+    client = Client(host, port)
+    client.connect()
+    return client
+
+
+def mount(args):
+    # Verify the executable
+    if args.exec is not None:
+        if not os.path.exists(args.exec) or not os.access(
+                args.exec,
+                os.F_OK | os.X_OK):
+            print(f'{args.exec} is not an executable file')
+            return
+        exec = args.exec
+    else:
+        exec = shutil.which('dhtfs-fuse')
+        if exec is None:
+            print(f'Could not find dhtfs-fuse in PATH')
+            return
+    fuse_args = [
+        os.path.basename(exec),
+        '-o', f'host={args.host}',
+        '-o', f'port={args.port}',
+        '-o', f'name={args.name}',
+    ]
+    if args.cache is not None:
+        fuse_args.extend(['-o', f'cache={args.cache}'])
+    env = os.environ.copy()
+    if args.debug:
+        fuse_args.append('-d')
+        # Enable glib debugging
+        env['G_MESSAGES_DEBUG'] = 'all'
+    fuse_args.append(args.mountpoint)
+
+    print(f'Mounting "{args.name}" on {args.mountpoint}')
+    os.execve(exec, fuse_args, env)
+
+
+def run():
+    args = parse_args()
+    setup_logging(args.verbose)
+
+    if args.command == 'create':
+        # Pick a random root inode number
+        if args.root is not None:
+            inumber = args.root
+        else:
+            inumber = random.getrandbits(63)
+        client = create_client(args.host, args.port)
+        client.put_filesystem(args.name, args.model, args.block_size, inumber)
+        print(f'Created file system "{args.name}"')
+    elif args.command == 'mount':
+        mount(args)
+    elif args.command == 'dht-get':
+        translate = None
+        # Translators for known types
+        if (args.get == 'key' and args.type == 'filesystem') or args.get == 'filesystem':
+            translate = lambda val: Client.from_binary(val, FileSystem())
+        if (args.get == 'key' and args.type == 'inode') or args.get == 'inode':
+            translate = lambda val: Client.from_binary(val, Inode())
+
+        if args.get == 'key' and args.hash:
+            kd = bytes.fromhex(args.key)
+        else:
+            # Create the DHT key when not given explicitly
+            if args.get == 'filesystem':
+                key = f'F:{args.name}'
+            elif args.get == 'inode':
+                key = f'I:{args.name}:{args.inode}'
+            else:
+                raise RuntimeError(f'Invalid get command: {args.get}')
+
+            kd = digest(key)
+            logging.info(f'DHT key: {key} -> {kd.hex()}')
+
+        value = create_client(args.host, args.port).get_iterative_digest(kd)
+        if value is not None:
+            if translate is not None:
+                value = translate(value)
+            print(value)
+        else:
+            print('Value not found')
+
+
+if __name__ == '__main__':
+    run()
