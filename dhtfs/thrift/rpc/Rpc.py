@@ -529,11 +529,11 @@ class FindClosestPeers_result(object):
             if fid == 0:
                 if ftype == TType.LIST:
                     self.success = []
-                    (_etype3, _size0) = iprot.readListBegin()
-                    for _i4 in range(_size0):
-                        _elem5 = Peer()
-                        _elem5.read(iprot)
-                        self.success.append(_elem5)
+                    (_etype10, _size7) = iprot.readListBegin()
+                    for _i11 in range(_size7):
+                        _elem12 = Peer()
+                        _elem12.read(iprot)
+                        self.success.append(_elem12)
                     iprot.readListEnd()
                 else:
                     iprot.skip(ftype)
@@ -550,8 +550,8 @@ class FindClosestPeers_result(object):
         if self.success is not None:
             oprot.writeFieldBegin('success', TType.LIST, 0)
             oprot.writeListBegin(TType.STRUCT, len(self.success))
-            for iter6 in self.success:
-                iter6.write(oprot)
+            for iter13 in self.success:
+                iter13.write(oprot)
             oprot.writeListEnd()
             oprot.writeFieldEnd()
         oprot.writeFieldStop()
@@ -1187,11 +1187,11 @@ class GetRange_result(object):
             if fid == 0:
                 if ftype == TType.LIST:
                     self.success = []
-                    (_etype10, _size7) = iprot.readListBegin()
-                    for _i11 in range(_size7):
-                        _elem12 = BucketValue()
-                        _elem12.read(iprot)
-                        self.success.append(_elem12)
+                    (_etype17, _size14) = iprot.readListBegin()
+                    for _i18 in range(_size14):
+                        _elem19 = BucketValue()
+                        _elem19.read(iprot)
+                        self.success.append(_elem19)
                     iprot.readListEnd()
                 else:
                     iprot.skip(ftype)
@@ -1214,8 +1214,8 @@ class GetRange_result(object):
         if self.success is not None:
             oprot.writeFieldBegin('success', TType.LIST, 0)
             oprot.writeListBegin(TType.STRUCT, len(self.success))
-            for iter13 in self.success:
-                iter13.write(oprot)
+            for iter20 in self.success:
+                iter20.write(oprot)
             oprot.writeListEnd()
             oprot.writeFieldEnd()
         if self.err is not None:

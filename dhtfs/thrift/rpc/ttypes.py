@@ -83,6 +83,71 @@ class Peer(object):
         return not (self == other)
 
 
+class Bucket(object):
+    """
+    Attributes:
+     - values
+    """
+
+
+    def __init__(self, values=None,):
+        self.values = values
+
+    def read(self, iprot):
+        if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
+            iprot._fast_decode(self, iprot, [self.__class__, self.thrift_spec])
+            return
+        iprot.readStructBegin()
+        while True:
+            (fname, ftype, fid) = iprot.readFieldBegin()
+            if ftype == TType.STOP:
+                break
+            if fid == 1:
+                if ftype == TType.LIST:
+                    self.values = []
+                    (_etype3, _size0) = iprot.readListBegin()
+                    for _i4 in range(_size0):
+                        _elem5 = BucketValue()
+                        _elem5.read(iprot)
+                        self.values.append(_elem5)
+                    iprot.readListEnd()
+                else:
+                    iprot.skip(ftype)
+            else:
+                iprot.skip(ftype)
+            iprot.readFieldEnd()
+        iprot.readStructEnd()
+
+    def write(self, oprot):
+        if oprot._fast_encode is not None and self.thrift_spec is not None:
+            oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
+            return
+        oprot.writeStructBegin('Bucket')
+        if self.values is not None:
+            oprot.writeFieldBegin('values', TType.LIST, 1)
+            oprot.writeListBegin(TType.STRUCT, len(self.values))
+            for iter6 in self.values:
+                iter6.write(oprot)
+            oprot.writeListEnd()
+            oprot.writeFieldEnd()
+        oprot.writeFieldStop()
+        oprot.writeStructEnd()
+
+    def validate(self):
+        return
+
+    def __repr__(self):
+        L = ['%s=%r' % (key, value)
+             for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        return not (self == other)
+
+
 class BucketValue(object):
     """
     Attributes:
@@ -223,6 +288,11 @@ Peer.thrift_spec = (
     None,  # 0
     (1, TType.STRING, 'host', 'UTF8', None, ),  # 1
     (2, TType.I32, 'port', None, None, ),  # 2
+)
+all_structs.append(Bucket)
+Bucket.thrift_spec = (
+    None,  # 0
+    (1, TType.LIST, 'values', (TType.STRUCT, [BucketValue, None], False), None, ),  # 1
 )
 all_structs.append(BucketValue)
 BucketValue.thrift_spec = (

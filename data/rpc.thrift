@@ -5,6 +5,10 @@ struct Peer {
 	2: i32 port
 }
 
+struct Bucket {
+	1: list<BucketValue> values
+}
+
 struct BucketValue {
 	1: i64 searchKey,
 	2: binary value
