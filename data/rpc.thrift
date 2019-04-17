@@ -6,7 +6,9 @@ struct Peer {
 }
 
 struct Bucket {
-	1: list<BucketValue> values
+	1: list<BucketValue> values,
+	2: i64 searchKeyMin,
+	3: i64 searchKeyMax
 }
 
 struct BucketValue {

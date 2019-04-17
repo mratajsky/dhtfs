@@ -87,11 +87,15 @@ class Bucket(object):
     """
     Attributes:
      - values
+     - searchKeyMin
+     - searchKeyMax
     """
 
 
-    def __init__(self, values=None,):
+    def __init__(self, values=None, searchKeyMin=None, searchKeyMax=None,):
         self.values = values
+        self.searchKeyMin = searchKeyMin
+        self.searchKeyMax = searchKeyMax
 
     def read(self, iprot):
         if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
@@ -113,6 +117,16 @@ class Bucket(object):
                     iprot.readListEnd()
                 else:
                     iprot.skip(ftype)
+            elif fid == 2:
+                if ftype == TType.I64:
+                    self.searchKeyMin = iprot.readI64()
+                else:
+                    iprot.skip(ftype)
+            elif fid == 3:
+                if ftype == TType.I64:
+                    self.searchKeyMax = iprot.readI64()
+                else:
+                    iprot.skip(ftype)
             else:
                 iprot.skip(ftype)
             iprot.readFieldEnd()
@@ -129,6 +143,14 @@ class Bucket(object):
             for iter6 in self.values:
                 iter6.write(oprot)
             oprot.writeListEnd()
+            oprot.writeFieldEnd()
+        if self.searchKeyMin is not None:
+            oprot.writeFieldBegin('searchKeyMin', TType.I64, 2)
+            oprot.writeI64(self.searchKeyMin)
+            oprot.writeFieldEnd()
+        if self.searchKeyMax is not None:
+            oprot.writeFieldBegin('searchKeyMax', TType.I64, 3)
+            oprot.writeI64(self.searchKeyMax)
             oprot.writeFieldEnd()
         oprot.writeFieldStop()
         oprot.writeStructEnd()
@@ -293,6 +315,8 @@ all_structs.append(Bucket)
 Bucket.thrift_spec = (
     None,  # 0
     (1, TType.LIST, 'values', (TType.STRUCT, [BucketValue, None], False), None, ),  # 1
+    (2, TType.I64, 'searchKeyMin', None, None, ),  # 2
+    (3, TType.I64, 'searchKeyMax', None, None, ),  # 3
 )
 all_structs.append(BucketValue)
 BucketValue.thrift_spec = (
