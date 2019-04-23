@@ -7,7 +7,7 @@ __all__ = ['defaults',
 DEFAULT_HOST = '127.0.0.1'
 DEFAULT_PORT = 9090
 DEFAULT_NAME = 'default'
-DEFAULT_BLOCK_SIZE = 4096
+DEFAULT_BLOCK_SIZE = 65536
 DEFAULT_MODEL = 0
 
 Defaults = namedtuple(
