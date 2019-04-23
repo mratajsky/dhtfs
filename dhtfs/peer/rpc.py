@@ -17,7 +17,7 @@ from ..thrift.rpc.ttypes import Peer, Bucket, BucketValue, StorageException
 
 logger = logging.getLogger(__name__)
 
-
+# Make BucketValue sortable
 BucketValue.__lt__ = lambda self, other: self.search_key < other.search_key
 
 

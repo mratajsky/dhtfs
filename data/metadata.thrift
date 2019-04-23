@@ -11,7 +11,8 @@ enum InodeType {
 }
 
 enum InodeFlags {
-    DELETED = 1,
+    EXECUTABLE = 1,
+    DELETED = 2
 }
 
 struct FileSystem {

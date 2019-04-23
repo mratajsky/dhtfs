@@ -47,14 +47,17 @@ class InodeType(object):
 
 
 class InodeFlags(object):
-    DELETED = 1
+    EXECUTABLE = 1
+    DELETED = 2
 
     _VALUES_TO_NAMES = {
-        1: "DELETED",
+        1: "EXECUTABLE",
+        2: "DELETED",
     }
 
     _NAMES_TO_VALUES = {
-        "DELETED": 1,
+        "EXECUTABLE": 1,
+        "DELETED": 2,
     }
 
 
