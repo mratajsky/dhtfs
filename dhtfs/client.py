@@ -60,8 +60,8 @@ class Client:
                 # Return the value as soon as we find it
                 return client.get(kd)
             except StorageException as e:
-                logging.info(f'Get(): {e.errorCode} -> {e.errorMessage}')
-                if e.errorCode != 404:
+                logging.info(f'Get(): {e.error_code} -> {e.error_message}')
+                if e.error_code != 404:
                     raise e
 
     # Store value at the K closest nodes
