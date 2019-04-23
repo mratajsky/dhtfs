@@ -6,6 +6,8 @@ from collections import namedtuple
 import appdirs
 import plyvel
 from kademlia.utils import digest
+from thrift.transport import TTransport
+from thrift.protocol import TBinaryProtocol
 
 __all__ = ['defaults',
            'get_default_database_path',
@@ -71,3 +73,21 @@ def setup_database(port, node_id=None, path=None, clean=False):
         database.put(b'dhtfs-node-id', node_id)
 
     return database, node_id
+
+
+def thrift_serialize(obj):
+    '''Serialize the given Thrift object and return a binary value.'''
+    transport = TTransport.TMemoryBuffer()
+    protocol = TBinaryProtocol.TBinaryProtocolAccelerated(transport)
+
+    obj.write(protocol)
+    return transport.getvalue()
+
+
+def thrift_unserialize(value, obj):
+    '''Unserialize the given binary value into the given object.'''
+    transport = TTransport.TMemoryBuffer(value)
+    protocol = TBinaryProtocol.TBinaryProtocolAccelerated(transport)
+
+    obj.read(protocol)
+    return obj

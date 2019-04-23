@@ -34,11 +34,13 @@ class Iface(object):
         """
         pass
 
-    def Add(self, key, value):
+    def Add(self, key, value, search_key_min, search_key_max):
         """
         Parameters:
          - key
          - value
+         - search_key_min
+         - search_key_max
         """
         pass
 
@@ -56,12 +58,20 @@ class Iface(object):
         """
         pass
 
-    def GetRange(self, key, searchKeyLow, searchKeyHigh):
+    def GetLatestMax(self, key, search_key_max):
         """
         Parameters:
          - key
-         - searchKeyLow
-         - searchKeyHigh
+         - search_key_max
+        """
+        pass
+
+    def GetRange(self, key, search_key_min, search_key_max):
+        """
+        Parameters:
+         - key
+         - search_key_min
+         - search_key_max
         """
         pass
 
@@ -135,20 +145,24 @@ class Client(Iface):
         iprot.readMessageEnd()
         return
 
-    def Add(self, key, value):
+    def Add(self, key, value, search_key_min, search_key_max):
         """
         Parameters:
          - key
          - value
+         - search_key_min
+         - search_key_max
         """
-        self.send_Add(key, value)
+        self.send_Add(key, value, search_key_min, search_key_max)
         self.recv_Add()
 
-    def send_Add(self, key, value):
+    def send_Add(self, key, value, search_key_min, search_key_max):
         self._oprot.writeMessageBegin('Add', TMessageType.CALL, self._seqid)
         args = Add_args()
         args.key = key
         args.value = value
+        args.search_key_min = search_key_min
+        args.search_key_max = search_key_max
         args.write(self._oprot)
         self._oprot.writeMessageEnd()
         self._oprot.trans.flush()
@@ -164,6 +178,8 @@ class Client(Iface):
         result = Add_result()
         result.read(iprot)
         iprot.readMessageEnd()
+        if result.err is not None:
+            raise result.err
         return
 
     def Get(self, key):
@@ -232,22 +248,57 @@ class Client(Iface):
             raise result.err
         raise TApplicationException(TApplicationException.MISSING_RESULT, "GetLatest failed: unknown result")
 
-    def GetRange(self, key, searchKeyLow, searchKeyHigh):
+    def GetLatestMax(self, key, search_key_max):
         """
         Parameters:
          - key
-         - searchKeyLow
-         - searchKeyHigh
+         - search_key_max
         """
-        self.send_GetRange(key, searchKeyLow, searchKeyHigh)
+        self.send_GetLatestMax(key, search_key_max)
+        return self.recv_GetLatestMax()
+
+    def send_GetLatestMax(self, key, search_key_max):
+        self._oprot.writeMessageBegin('GetLatestMax', TMessageType.CALL, self._seqid)
+        args = GetLatestMax_args()
+        args.key = key
+        args.search_key_max = search_key_max
+        args.write(self._oprot)
+        self._oprot.writeMessageEnd()
+        self._oprot.trans.flush()
+
+    def recv_GetLatestMax(self):
+        iprot = self._iprot
+        (fname, mtype, rseqid) = iprot.readMessageBegin()
+        if mtype == TMessageType.EXCEPTION:
+            x = TApplicationException()
+            x.read(iprot)
+            iprot.readMessageEnd()
+            raise x
+        result = GetLatestMax_result()
+        result.read(iprot)
+        iprot.readMessageEnd()
+        if result.success is not None:
+            return result.success
+        if result.err is not None:
+            raise result.err
+        raise TApplicationException(TApplicationException.MISSING_RESULT, "GetLatestMax failed: unknown result")
+
+    def GetRange(self, key, search_key_min, search_key_max):
+        """
+        Parameters:
+         - key
+         - search_key_min
+         - search_key_max
+        """
+        self.send_GetRange(key, search_key_min, search_key_max)
         return self.recv_GetRange()
 
-    def send_GetRange(self, key, searchKeyLow, searchKeyHigh):
+    def send_GetRange(self, key, search_key_min, search_key_max):
         self._oprot.writeMessageBegin('GetRange', TMessageType.CALL, self._seqid)
         args = GetRange_args()
         args.key = key
-        args.searchKeyLow = searchKeyLow
-        args.searchKeyHigh = searchKeyHigh
+        args.search_key_min = search_key_min
+        args.search_key_max = search_key_max
         args.write(self._oprot)
         self._oprot.writeMessageEnd()
         self._oprot.trans.flush()
@@ -265,8 +316,6 @@ class Client(Iface):
         iprot.readMessageEnd()
         if result.success is not None:
             return result.success
-        if result.err is not None:
-            raise result.err
         raise TApplicationException(TApplicationException.MISSING_RESULT, "GetRange failed: unknown result")
 
 
@@ -279,6 +328,7 @@ class Processor(Iface, TProcessor):
         self._processMap["Add"] = Processor.process_Add
         self._processMap["Get"] = Processor.process_Get
         self._processMap["GetLatest"] = Processor.process_GetLatest
+        self._processMap["GetLatestMax"] = Processor.process_GetLatestMax
         self._processMap["GetRange"] = Processor.process_GetRange
 
     def process(self, iprot, oprot):
@@ -348,10 +398,13 @@ class Processor(Iface, TProcessor):
         iprot.readMessageEnd()
         result = Add_result()
         try:
-            self._handler.Add(args.key, args.value)
+            self._handler.Add(args.key, args.value, args.search_key_min, args.search_key_max)
             msg_type = TMessageType.REPLY
         except TTransport.TTransportException:
             raise
+        except StorageException as err:
+            msg_type = TMessageType.REPLY
+            result.err = err
         except TApplicationException as ex:
             logging.exception('TApplication exception in handler')
             msg_type = TMessageType.EXCEPTION
@@ -417,19 +470,42 @@ class Processor(Iface, TProcessor):
         oprot.writeMessageEnd()
         oprot.trans.flush()
 
-    def process_GetRange(self, seqid, iprot, oprot):
-        args = GetRange_args()
+    def process_GetLatestMax(self, seqid, iprot, oprot):
+        args = GetLatestMax_args()
         args.read(iprot)
         iprot.readMessageEnd()
-        result = GetRange_result()
+        result = GetLatestMax_result()
         try:
-            result.success = self._handler.GetRange(args.key, args.searchKeyLow, args.searchKeyHigh)
+            result.success = self._handler.GetLatestMax(args.key, args.search_key_max)
             msg_type = TMessageType.REPLY
         except TTransport.TTransportException:
             raise
         except StorageException as err:
             msg_type = TMessageType.REPLY
             result.err = err
+        except TApplicationException as ex:
+            logging.exception('TApplication exception in handler')
+            msg_type = TMessageType.EXCEPTION
+            result = ex
+        except Exception:
+            logging.exception('Unexpected exception in handler')
+            msg_type = TMessageType.EXCEPTION
+            result = TApplicationException(TApplicationException.INTERNAL_ERROR, 'Internal error')
+        oprot.writeMessageBegin("GetLatestMax", msg_type, seqid)
+        result.write(oprot)
+        oprot.writeMessageEnd()
+        oprot.trans.flush()
+
+    def process_GetRange(self, seqid, iprot, oprot):
+        args = GetRange_args()
+        args.read(iprot)
+        iprot.readMessageEnd()
+        result = GetRange_result()
+        try:
+            result.success = self._handler.GetRange(args.key, args.search_key_min, args.search_key_max)
+            msg_type = TMessageType.REPLY
+        except TTransport.TTransportException:
+            raise
         except TApplicationException as ex:
             logging.exception('TApplication exception in handler')
             msg_type = TMessageType.EXCEPTION
@@ -697,12 +773,16 @@ class Add_args(object):
     Attributes:
      - key
      - value
+     - search_key_min
+     - search_key_max
     """
 
 
-    def __init__(self, key=None, value=None,):
+    def __init__(self, key=None, value=None, search_key_min=None, search_key_max=None,):
         self.key = key
         self.value = value
+        self.search_key_min = search_key_min
+        self.search_key_max = search_key_max
 
     def read(self, iprot):
         if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
@@ -724,6 +804,16 @@ class Add_args(object):
                     self.value.read(iprot)
                 else:
                     iprot.skip(ftype)
+            elif fid == 3:
+                if ftype == TType.I64:
+                    self.search_key_min = iprot.readI64()
+                else:
+                    iprot.skip(ftype)
+            elif fid == 4:
+                if ftype == TType.I64:
+                    self.search_key_max = iprot.readI64()
+                else:
+                    iprot.skip(ftype)
             else:
                 iprot.skip(ftype)
             iprot.readFieldEnd()
@@ -741,6 +831,14 @@ class Add_args(object):
         if self.value is not None:
             oprot.writeFieldBegin('value', TType.STRUCT, 2)
             self.value.write(oprot)
+            oprot.writeFieldEnd()
+        if self.search_key_min is not None:
+            oprot.writeFieldBegin('search_key_min', TType.I64, 3)
+            oprot.writeI64(self.search_key_min)
+            oprot.writeFieldEnd()
+        if self.search_key_max is not None:
+            oprot.writeFieldBegin('search_key_max', TType.I64, 4)
+            oprot.writeI64(self.search_key_max)
             oprot.writeFieldEnd()
         oprot.writeFieldStop()
         oprot.writeStructEnd()
@@ -763,11 +861,20 @@ Add_args.thrift_spec = (
     None,  # 0
     (1, TType.STRING, 'key', 'BINARY', None, ),  # 1
     (2, TType.STRUCT, 'value', [BucketValue, None], None, ),  # 2
+    (3, TType.I64, 'search_key_min', None, None, ),  # 3
+    (4, TType.I64, 'search_key_max', None, None, ),  # 4
 )
 
 
 class Add_result(object):
+    """
+    Attributes:
+     - err
+    """
 
+
+    def __init__(self, err=None,):
+        self.err = err
 
     def read(self, iprot):
         if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
@@ -778,6 +885,12 @@ class Add_result(object):
             (fname, ftype, fid) = iprot.readFieldBegin()
             if ftype == TType.STOP:
                 break
+            if fid == 1:
+                if ftype == TType.STRUCT:
+                    self.err = StorageException()
+                    self.err.read(iprot)
+                else:
+                    iprot.skip(ftype)
             else:
                 iprot.skip(ftype)
             iprot.readFieldEnd()
@@ -788,6 +901,10 @@ class Add_result(object):
             oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
             return
         oprot.writeStructBegin('Add_result')
+        if self.err is not None:
+            oprot.writeFieldBegin('err', TType.STRUCT, 1)
+            self.err.write(oprot)
+            oprot.writeFieldEnd()
         oprot.writeFieldStop()
         oprot.writeStructEnd()
 
@@ -806,6 +923,8 @@ class Add_result(object):
         return not (self == other)
 all_structs.append(Add_result)
 Add_result.thrift_spec = (
+    None,  # 0
+    (1, TType.STRUCT, 'err', [StorageException, None], None, ),  # 1
 )
 
 
@@ -1078,19 +1197,17 @@ GetLatest_result.thrift_spec = (
 )
 
 
-class GetRange_args(object):
+class GetLatestMax_args(object):
     """
     Attributes:
      - key
-     - searchKeyLow
-     - searchKeyHigh
+     - search_key_max
     """
 
 
-    def __init__(self, key=None, searchKeyLow=None, searchKeyHigh=None,):
+    def __init__(self, key=None, search_key_max=None,):
         self.key = key
-        self.searchKeyLow = searchKeyLow
-        self.searchKeyHigh = searchKeyHigh
+        self.search_key_max = search_key_max
 
     def read(self, iprot):
         if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
@@ -1108,12 +1225,7 @@ class GetRange_args(object):
                     iprot.skip(ftype)
             elif fid == 2:
                 if ftype == TType.I64:
-                    self.searchKeyLow = iprot.readI64()
-                else:
-                    iprot.skip(ftype)
-            elif fid == 3:
-                if ftype == TType.I64:
-                    self.searchKeyHigh = iprot.readI64()
+                    self.search_key_max = iprot.readI64()
                 else:
                     iprot.skip(ftype)
             else:
@@ -1125,18 +1237,14 @@ class GetRange_args(object):
         if oprot._fast_encode is not None and self.thrift_spec is not None:
             oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
             return
-        oprot.writeStructBegin('GetRange_args')
+        oprot.writeStructBegin('GetLatestMax_args')
         if self.key is not None:
             oprot.writeFieldBegin('key', TType.STRING, 1)
             oprot.writeBinary(self.key)
             oprot.writeFieldEnd()
-        if self.searchKeyLow is not None:
-            oprot.writeFieldBegin('searchKeyLow', TType.I64, 2)
-            oprot.writeI64(self.searchKeyLow)
-            oprot.writeFieldEnd()
-        if self.searchKeyHigh is not None:
-            oprot.writeFieldBegin('searchKeyHigh', TType.I64, 3)
-            oprot.writeI64(self.searchKeyHigh)
+        if self.search_key_max is not None:
+            oprot.writeFieldBegin('search_key_max', TType.I64, 2)
+            oprot.writeI64(self.search_key_max)
             oprot.writeFieldEnd()
         oprot.writeFieldStop()
         oprot.writeStructEnd()
@@ -1154,16 +1262,15 @@ class GetRange_args(object):
 
     def __ne__(self, other):
         return not (self == other)
-all_structs.append(GetRange_args)
-GetRange_args.thrift_spec = (
+all_structs.append(GetLatestMax_args)
+GetLatestMax_args.thrift_spec = (
     None,  # 0
     (1, TType.STRING, 'key', 'BINARY', None, ),  # 1
-    (2, TType.I64, 'searchKeyLow', None, None, ),  # 2
-    (3, TType.I64, 'searchKeyHigh', None, None, ),  # 3
+    (2, TType.I64, 'search_key_max', None, None, ),  # 2
 )
 
 
-class GetRange_result(object):
+class GetLatestMax_result(object):
     """
     Attributes:
      - success
@@ -1185,14 +1292,9 @@ class GetRange_result(object):
             if ftype == TType.STOP:
                 break
             if fid == 0:
-                if ftype == TType.LIST:
-                    self.success = []
-                    (_etype17, _size14) = iprot.readListBegin()
-                    for _i18 in range(_size14):
-                        _elem19 = BucketValue()
-                        _elem19.read(iprot)
-                        self.success.append(_elem19)
-                    iprot.readListEnd()
+                if ftype == TType.STRUCT:
+                    self.success = BucketValue()
+                    self.success.read(iprot)
                 else:
                     iprot.skip(ftype)
             elif fid == 1:
@@ -1210,13 +1312,10 @@ class GetRange_result(object):
         if oprot._fast_encode is not None and self.thrift_spec is not None:
             oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
             return
-        oprot.writeStructBegin('GetRange_result')
+        oprot.writeStructBegin('GetLatestMax_result')
         if self.success is not None:
-            oprot.writeFieldBegin('success', TType.LIST, 0)
-            oprot.writeListBegin(TType.STRUCT, len(self.success))
-            for iter20 in self.success:
-                iter20.write(oprot)
-            oprot.writeListEnd()
+            oprot.writeFieldBegin('success', TType.STRUCT, 0)
+            self.success.write(oprot)
             oprot.writeFieldEnd()
         if self.err is not None:
             oprot.writeFieldBegin('err', TType.STRUCT, 1)
@@ -1238,10 +1337,164 @@ class GetRange_result(object):
 
     def __ne__(self, other):
         return not (self == other)
+all_structs.append(GetLatestMax_result)
+GetLatestMax_result.thrift_spec = (
+    (0, TType.STRUCT, 'success', [BucketValue, None], None, ),  # 0
+    (1, TType.STRUCT, 'err', [StorageException, None], None, ),  # 1
+)
+
+
+class GetRange_args(object):
+    """
+    Attributes:
+     - key
+     - search_key_min
+     - search_key_max
+    """
+
+
+    def __init__(self, key=None, search_key_min=None, search_key_max=None,):
+        self.key = key
+        self.search_key_min = search_key_min
+        self.search_key_max = search_key_max
+
+    def read(self, iprot):
+        if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
+            iprot._fast_decode(self, iprot, [self.__class__, self.thrift_spec])
+            return
+        iprot.readStructBegin()
+        while True:
+            (fname, ftype, fid) = iprot.readFieldBegin()
+            if ftype == TType.STOP:
+                break
+            if fid == 1:
+                if ftype == TType.STRING:
+                    self.key = iprot.readBinary()
+                else:
+                    iprot.skip(ftype)
+            elif fid == 2:
+                if ftype == TType.I64:
+                    self.search_key_min = iprot.readI64()
+                else:
+                    iprot.skip(ftype)
+            elif fid == 3:
+                if ftype == TType.I64:
+                    self.search_key_max = iprot.readI64()
+                else:
+                    iprot.skip(ftype)
+            else:
+                iprot.skip(ftype)
+            iprot.readFieldEnd()
+        iprot.readStructEnd()
+
+    def write(self, oprot):
+        if oprot._fast_encode is not None and self.thrift_spec is not None:
+            oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
+            return
+        oprot.writeStructBegin('GetRange_args')
+        if self.key is not None:
+            oprot.writeFieldBegin('key', TType.STRING, 1)
+            oprot.writeBinary(self.key)
+            oprot.writeFieldEnd()
+        if self.search_key_min is not None:
+            oprot.writeFieldBegin('search_key_min', TType.I64, 2)
+            oprot.writeI64(self.search_key_min)
+            oprot.writeFieldEnd()
+        if self.search_key_max is not None:
+            oprot.writeFieldBegin('search_key_max', TType.I64, 3)
+            oprot.writeI64(self.search_key_max)
+            oprot.writeFieldEnd()
+        oprot.writeFieldStop()
+        oprot.writeStructEnd()
+
+    def validate(self):
+        return
+
+    def __repr__(self):
+        L = ['%s=%r' % (key, value)
+             for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        return not (self == other)
+all_structs.append(GetRange_args)
+GetRange_args.thrift_spec = (
+    None,  # 0
+    (1, TType.STRING, 'key', 'BINARY', None, ),  # 1
+    (2, TType.I64, 'search_key_min', None, None, ),  # 2
+    (3, TType.I64, 'search_key_max', None, None, ),  # 3
+)
+
+
+class GetRange_result(object):
+    """
+    Attributes:
+     - success
+    """
+
+
+    def __init__(self, success=None,):
+        self.success = success
+
+    def read(self, iprot):
+        if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
+            iprot._fast_decode(self, iprot, [self.__class__, self.thrift_spec])
+            return
+        iprot.readStructBegin()
+        while True:
+            (fname, ftype, fid) = iprot.readFieldBegin()
+            if ftype == TType.STOP:
+                break
+            if fid == 0:
+                if ftype == TType.LIST:
+                    self.success = []
+                    (_etype17, _size14) = iprot.readListBegin()
+                    for _i18 in range(_size14):
+                        _elem19 = BucketValue()
+                        _elem19.read(iprot)
+                        self.success.append(_elem19)
+                    iprot.readListEnd()
+                else:
+                    iprot.skip(ftype)
+            else:
+                iprot.skip(ftype)
+            iprot.readFieldEnd()
+        iprot.readStructEnd()
+
+    def write(self, oprot):
+        if oprot._fast_encode is not None and self.thrift_spec is not None:
+            oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
+            return
+        oprot.writeStructBegin('GetRange_result')
+        if self.success is not None:
+            oprot.writeFieldBegin('success', TType.LIST, 0)
+            oprot.writeListBegin(TType.STRUCT, len(self.success))
+            for iter20 in self.success:
+                iter20.write(oprot)
+            oprot.writeListEnd()
+            oprot.writeFieldEnd()
+        oprot.writeFieldStop()
+        oprot.writeStructEnd()
+
+    def validate(self):
+        return
+
+    def __repr__(self):
+        L = ['%s=%r' % (key, value)
+             for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        return not (self == other)
 all_structs.append(GetRange_result)
 GetRange_result.thrift_spec = (
     (0, TType.LIST, 'success', (TType.STRUCT, [BucketValue, None], False), None, ),  # 0
-    (1, TType.STRUCT, 'err', [StorageException, None], None, ),  # 1
 )
 fix_spec(all_structs)
 del all_structs

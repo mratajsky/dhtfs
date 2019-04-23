@@ -26,10 +26,11 @@ if len(sys.argv) <= 1 or sys.argv[1] == '--help':
     print('Functions:')
     print('   FindClosestPeers(string key)')
     print('  void Put(string key, string value)')
-    print('  void Add(string key, BucketValue value)')
+    print('  void Add(string key, BucketValue value, i64 search_key_min, i64 search_key_max)')
     print('  string Get(string key)')
     print('  BucketValue GetLatest(string key)')
-    print('   GetRange(string key, i64 searchKeyLow, i64 searchKeyHigh)')
+    print('  BucketValue GetLatestMax(string key, i64 search_key_max)')
+    print('   GetRange(string key, i64 search_key_min, i64 search_key_max)')
     print('')
     sys.exit(0)
 
@@ -122,10 +123,10 @@ elif cmd == 'Put':
     pp.pprint(client.Put(args[0], args[1],))
 
 elif cmd == 'Add':
-    if len(args) != 2:
-        print('Add requires 2 args')
+    if len(args) != 4:
+        print('Add requires 4 args')
         sys.exit(1)
-    pp.pprint(client.Add(args[0], eval(args[1]),))
+    pp.pprint(client.Add(args[0], eval(args[1]), eval(args[2]), eval(args[3]),))
 
 elif cmd == 'Get':
     if len(args) != 1:
@@ -138,6 +139,12 @@ elif cmd == 'GetLatest':
         print('GetLatest requires 1 args')
         sys.exit(1)
     pp.pprint(client.GetLatest(args[0],))
+
+elif cmd == 'GetLatestMax':
+    if len(args) != 2:
+        print('GetLatestMax requires 2 args')
+        sys.exit(1)
+    pp.pprint(client.GetLatestMax(args[0], eval(args[1]),))
 
 elif cmd == 'GetRange':
     if len(args) != 3:

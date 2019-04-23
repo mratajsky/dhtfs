@@ -1,31 +1,47 @@
 namespace c_glib Thrift
 
+enum FileSystemModel {
+    PASTIS,     // Pastis model: overwrite everything
+    BASIC,      // Basic dhtfs model: use indexing overlay
+}
+
+enum InodeType {
+    FILE,
+    DIRECTORY
+}
+
+enum InodeFlags {
+    DELETED = 1,
+}
+
 struct FileSystem {
-    1: string name,
-    2: i8 model,
-    3: i32 block_size,
-    4: i64 root
+    1: required string name,
+    2: required i32 block_size,
+    3: required i64 root,
+    4: FileSystemModel model = FileSystemModel.BASIC
 }
 
-union FileBlock {
-    1: binary block,
-    2: binary ptr
+struct FileData {
+    1: required i64 size,
+    2: list<binary> blocks
 }
 
-struct FileInode {
-    1: i64 inumber,
-    2: i64 size,
-    3: i64 mtime,
-    4: i32 mode,
-    5: list<FileBlock> blocks
+struct DirEntry {
+    1: required i64 inumber,
+    2: required InodeType type,
+    3: required string name
 }
 
-struct DirInode {
-    1: i64 inumber,
-    2: i64 mtime
+struct DirData {
+    1: list<DirEntry> entries
 }
 
-union Inode {
-    1: FileInode file,
-    2: DirInode directory
+struct Inode {
+    1: required i64 id,
+    2: required i64 inumber,
+    3: required InodeType type,
+    4: required i64 mtime,
+    5: optional i32 flags = 0,
+    6: optional FileData file_data,
+    7: optional DirData directory_data
 }

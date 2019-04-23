@@ -69,93 +69,10 @@ class Peer(object):
         oprot.writeStructEnd()
 
     def validate(self):
-        return
-
-    def __repr__(self):
-        L = ['%s=%r' % (key, value)
-             for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
-
-    def __eq__(self, other):
-        return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
-
-    def __ne__(self, other):
-        return not (self == other)
-
-
-class Bucket(object):
-    """
-    Attributes:
-     - values
-     - searchKeyMin
-     - searchKeyMax
-    """
-
-
-    def __init__(self, values=None, searchKeyMin=None, searchKeyMax=None,):
-        self.values = values
-        self.searchKeyMin = searchKeyMin
-        self.searchKeyMax = searchKeyMax
-
-    def read(self, iprot):
-        if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
-            iprot._fast_decode(self, iprot, [self.__class__, self.thrift_spec])
-            return
-        iprot.readStructBegin()
-        while True:
-            (fname, ftype, fid) = iprot.readFieldBegin()
-            if ftype == TType.STOP:
-                break
-            if fid == 1:
-                if ftype == TType.LIST:
-                    self.values = []
-                    (_etype3, _size0) = iprot.readListBegin()
-                    for _i4 in range(_size0):
-                        _elem5 = BucketValue()
-                        _elem5.read(iprot)
-                        self.values.append(_elem5)
-                    iprot.readListEnd()
-                else:
-                    iprot.skip(ftype)
-            elif fid == 2:
-                if ftype == TType.I64:
-                    self.searchKeyMin = iprot.readI64()
-                else:
-                    iprot.skip(ftype)
-            elif fid == 3:
-                if ftype == TType.I64:
-                    self.searchKeyMax = iprot.readI64()
-                else:
-                    iprot.skip(ftype)
-            else:
-                iprot.skip(ftype)
-            iprot.readFieldEnd()
-        iprot.readStructEnd()
-
-    def write(self, oprot):
-        if oprot._fast_encode is not None and self.thrift_spec is not None:
-            oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
-            return
-        oprot.writeStructBegin('Bucket')
-        if self.values is not None:
-            oprot.writeFieldBegin('values', TType.LIST, 1)
-            oprot.writeListBegin(TType.STRUCT, len(self.values))
-            for iter6 in self.values:
-                iter6.write(oprot)
-            oprot.writeListEnd()
-            oprot.writeFieldEnd()
-        if self.searchKeyMin is not None:
-            oprot.writeFieldBegin('searchKeyMin', TType.I64, 2)
-            oprot.writeI64(self.searchKeyMin)
-            oprot.writeFieldEnd()
-        if self.searchKeyMax is not None:
-            oprot.writeFieldBegin('searchKeyMax', TType.I64, 3)
-            oprot.writeI64(self.searchKeyMax)
-            oprot.writeFieldEnd()
-        oprot.writeFieldStop()
-        oprot.writeStructEnd()
-
-    def validate(self):
+        if self.host is None:
+            raise TProtocolException(message='Required field host is unset!')
+        if self.port is None:
+            raise TProtocolException(message='Required field port is unset!')
         return
 
     def __repr__(self):
@@ -173,13 +90,13 @@ class Bucket(object):
 class BucketValue(object):
     """
     Attributes:
-     - searchKey
+     - search_key
      - value
     """
 
 
-    def __init__(self, searchKey=None, value=None,):
-        self.searchKey = searchKey
+    def __init__(self, search_key=None, value=None,):
+        self.search_key = search_key
         self.value = value
 
     def read(self, iprot):
@@ -193,7 +110,7 @@ class BucketValue(object):
                 break
             if fid == 1:
                 if ftype == TType.I64:
-                    self.searchKey = iprot.readI64()
+                    self.search_key = iprot.readI64()
                 else:
                     iprot.skip(ftype)
             elif fid == 2:
@@ -211,9 +128,9 @@ class BucketValue(object):
             oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
             return
         oprot.writeStructBegin('BucketValue')
-        if self.searchKey is not None:
-            oprot.writeFieldBegin('searchKey', TType.I64, 1)
-            oprot.writeI64(self.searchKey)
+        if self.search_key is not None:
+            oprot.writeFieldBegin('search_key', TType.I64, 1)
+            oprot.writeI64(self.search_key)
             oprot.writeFieldEnd()
         if self.value is not None:
             oprot.writeFieldBegin('value', TType.STRING, 2)
@@ -223,6 +140,101 @@ class BucketValue(object):
         oprot.writeStructEnd()
 
     def validate(self):
+        if self.search_key is None:
+            raise TProtocolException(message='Required field search_key is unset!')
+        if self.value is None:
+            raise TProtocolException(message='Required field value is unset!')
+        return
+
+    def __repr__(self):
+        L = ['%s=%r' % (key, value)
+             for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        return not (self == other)
+
+
+class Bucket(object):
+    """
+    Attributes:
+     - search_key_min
+     - search_key_max
+     - values
+    """
+
+
+    def __init__(self, search_key_min=None, search_key_max=None, values=None,):
+        self.search_key_min = search_key_min
+        self.search_key_max = search_key_max
+        self.values = values
+
+    def read(self, iprot):
+        if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
+            iprot._fast_decode(self, iprot, [self.__class__, self.thrift_spec])
+            return
+        iprot.readStructBegin()
+        while True:
+            (fname, ftype, fid) = iprot.readFieldBegin()
+            if ftype == TType.STOP:
+                break
+            if fid == 1:
+                if ftype == TType.I64:
+                    self.search_key_min = iprot.readI64()
+                else:
+                    iprot.skip(ftype)
+            elif fid == 2:
+                if ftype == TType.I64:
+                    self.search_key_max = iprot.readI64()
+                else:
+                    iprot.skip(ftype)
+            elif fid == 3:
+                if ftype == TType.LIST:
+                    self.values = []
+                    (_etype3, _size0) = iprot.readListBegin()
+                    for _i4 in range(_size0):
+                        _elem5 = BucketValue()
+                        _elem5.read(iprot)
+                        self.values.append(_elem5)
+                    iprot.readListEnd()
+                else:
+                    iprot.skip(ftype)
+            else:
+                iprot.skip(ftype)
+            iprot.readFieldEnd()
+        iprot.readStructEnd()
+
+    def write(self, oprot):
+        if oprot._fast_encode is not None and self.thrift_spec is not None:
+            oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
+            return
+        oprot.writeStructBegin('Bucket')
+        if self.search_key_min is not None:
+            oprot.writeFieldBegin('search_key_min', TType.I64, 1)
+            oprot.writeI64(self.search_key_min)
+            oprot.writeFieldEnd()
+        if self.search_key_max is not None:
+            oprot.writeFieldBegin('search_key_max', TType.I64, 2)
+            oprot.writeI64(self.search_key_max)
+            oprot.writeFieldEnd()
+        if self.values is not None:
+            oprot.writeFieldBegin('values', TType.LIST, 3)
+            oprot.writeListBegin(TType.STRUCT, len(self.values))
+            for iter6 in self.values:
+                iter6.write(oprot)
+            oprot.writeListEnd()
+            oprot.writeFieldEnd()
+        oprot.writeFieldStop()
+        oprot.writeStructEnd()
+
+    def validate(self):
+        if self.search_key_min is None:
+            raise TProtocolException(message='Required field search_key_min is unset!')
+        if self.search_key_max is None:
+            raise TProtocolException(message='Required field search_key_max is unset!')
         return
 
     def __repr__(self):
@@ -240,14 +252,14 @@ class BucketValue(object):
 class StorageException(TException):
     """
     Attributes:
-     - errorCode
-     - errorMessage
+     - error_code
+     - error_message
     """
 
 
-    def __init__(self, errorCode=None, errorMessage=None,):
-        self.errorCode = errorCode
-        self.errorMessage = errorMessage
+    def __init__(self, error_code=None, error_message=None,):
+        self.error_code = error_code
+        self.error_message = error_message
 
     def read(self, iprot):
         if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
@@ -260,12 +272,12 @@ class StorageException(TException):
                 break
             if fid == 1:
                 if ftype == TType.I32:
-                    self.errorCode = iprot.readI32()
+                    self.error_code = iprot.readI32()
                 else:
                     iprot.skip(ftype)
             elif fid == 2:
                 if ftype == TType.STRING:
-                    self.errorMessage = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
+                    self.error_message = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
                 else:
                     iprot.skip(ftype)
             else:
@@ -278,18 +290,22 @@ class StorageException(TException):
             oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
             return
         oprot.writeStructBegin('StorageException')
-        if self.errorCode is not None:
-            oprot.writeFieldBegin('errorCode', TType.I32, 1)
-            oprot.writeI32(self.errorCode)
+        if self.error_code is not None:
+            oprot.writeFieldBegin('error_code', TType.I32, 1)
+            oprot.writeI32(self.error_code)
             oprot.writeFieldEnd()
-        if self.errorMessage is not None:
-            oprot.writeFieldBegin('errorMessage', TType.STRING, 2)
-            oprot.writeString(self.errorMessage.encode('utf-8') if sys.version_info[0] == 2 else self.errorMessage)
+        if self.error_message is not None:
+            oprot.writeFieldBegin('error_message', TType.STRING, 2)
+            oprot.writeString(self.error_message.encode('utf-8') if sys.version_info[0] == 2 else self.error_message)
             oprot.writeFieldEnd()
         oprot.writeFieldStop()
         oprot.writeStructEnd()
 
     def validate(self):
+        if self.error_code is None:
+            raise TProtocolException(message='Required field error_code is unset!')
+        if self.error_message is None:
+            raise TProtocolException(message='Required field error_message is unset!')
         return
 
     def __str__(self):
@@ -311,24 +327,24 @@ Peer.thrift_spec = (
     (1, TType.STRING, 'host', 'UTF8', None, ),  # 1
     (2, TType.I32, 'port', None, None, ),  # 2
 )
-all_structs.append(Bucket)
-Bucket.thrift_spec = (
-    None,  # 0
-    (1, TType.LIST, 'values', (TType.STRUCT, [BucketValue, None], False), None, ),  # 1
-    (2, TType.I64, 'searchKeyMin', None, None, ),  # 2
-    (3, TType.I64, 'searchKeyMax', None, None, ),  # 3
-)
 all_structs.append(BucketValue)
 BucketValue.thrift_spec = (
     None,  # 0
-    (1, TType.I64, 'searchKey', None, None, ),  # 1
+    (1, TType.I64, 'search_key', None, None, ),  # 1
     (2, TType.STRING, 'value', 'BINARY', None, ),  # 2
+)
+all_structs.append(Bucket)
+Bucket.thrift_spec = (
+    None,  # 0
+    (1, TType.I64, 'search_key_min', None, None, ),  # 1
+    (2, TType.I64, 'search_key_max', None, None, ),  # 2
+    (3, TType.LIST, 'values', (TType.STRUCT, [BucketValue, None], False), None, ),  # 3
 )
 all_structs.append(StorageException)
 StorageException.thrift_spec = (
     None,  # 0
-    (1, TType.I32, 'errorCode', None, None, ),  # 1
-    (2, TType.STRING, 'errorMessage', 'UTF8', None, ),  # 2
+    (1, TType.I32, 'error_code', None, None, ),  # 1
+    (2, TType.STRING, 'error_message', 'UTF8', None, ),  # 2
 )
 fix_spec(all_structs)
 del all_structs

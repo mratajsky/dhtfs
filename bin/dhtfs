@@ -12,6 +12,7 @@ from kademlia.utils import digest
 
 from dhtfs.utils import *
 from dhtfs.client import Client
+from dhtfs.peer.utils import thrift_unserialize
 from dhtfs.thrift.metadata.ttypes import FileSystem, Inode
 
 
@@ -141,9 +142,9 @@ def run():
         translate = None
         # Translators for known types
         if (args.get == 'key' and args.type == 'filesystem') or args.get == 'filesystem':
-            translate = lambda val: Client.from_binary(val, FileSystem())
+            translate = lambda val: thrift_unserialize(val, FileSystem())
         if (args.get == 'key' and args.type == 'inode') or args.get == 'inode':
-            translate = lambda val: Client.from_binary(val, Inode())
+            translate = lambda val: thrift_unserialize(val, Inode())
 
         if args.get == 'key' and args.hash:
             kd = bytes.fromhex(args.key)

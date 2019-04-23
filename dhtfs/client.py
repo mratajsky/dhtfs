@@ -7,7 +7,8 @@ from thrift.transport import TSocket
 from thrift.transport import TTransport
 from thrift.protocol import TBinaryProtocol
 
-from .thrift.metadata.ttypes import FileSystem, Inode, DirInode
+from .peer.utils import thrift_serialize
+from .thrift.metadata.ttypes import FileSystem, Inode, InodeType, DirData
 from .thrift.rpc import Rpc
 from .thrift.rpc.ttypes import Peer, StorageException
 
@@ -67,7 +68,7 @@ class Client:
     def put_iterative(self, key, value):
         assert self._connected
         kd = digest(key)
-        bin_value = self.to_binary(value)
+        bin_value = thrift_serialize(value)
         logging.debug(f'Storing {key} -> {kd.hex()} -> {value}')
         peers = self._client.FindClosestPeers(kd)
         for peer in peers:
@@ -80,9 +81,11 @@ class Client:
     def put_filesystem(self, fs_name, model, block_size, inumber):
         assert self._connected
         # Store the root inode first
-        value = Inode(directory=DirInode(
+        value = Inode(
+            type=InodeType.DIRECTORY,
             inumber=inumber,
-            mtime=int(datetime.datetime.now().timestamp())))
+            mtime=int(datetime.datetime.now().timestamp()),
+            directory_data=DirData(entries=[]))
         self.put_inode(fs_name, inumber, value)
 
         # Store the file system description
@@ -97,19 +100,3 @@ class Client:
     def put_inode(self, fs_name, inumber, inode):
         assert self._connected
         self.put_iterative(f'I:{fs_name}:{inumber}', inode)
-
-    @staticmethod
-    def to_binary(obj):
-        transport = TTransport.TMemoryBuffer()
-        protocol = TBinaryProtocol.TBinaryProtocolAccelerated(transport)
-
-        obj.write(protocol)
-        return transport.getvalue()
-
-    @staticmethod
-    def from_binary(value, obj):
-        transport = TTransport.TMemoryBuffer(value)
-        protocol = TBinaryProtocol.TBinaryProtocolAccelerated(transport)
-
-        obj.read(protocol)
-        return obj

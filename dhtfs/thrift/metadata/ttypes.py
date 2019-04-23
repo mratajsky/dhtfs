@@ -16,21 +16,63 @@ from thrift.transport import TTransport
 all_structs = []
 
 
+class FileSystemModel(object):
+    PASTIS = 0
+    BASIC = 1
+
+    _VALUES_TO_NAMES = {
+        0: "PASTIS",
+        1: "BASIC",
+    }
+
+    _NAMES_TO_VALUES = {
+        "PASTIS": 0,
+        "BASIC": 1,
+    }
+
+
+class InodeType(object):
+    FILE = 0
+    DIRECTORY = 1
+
+    _VALUES_TO_NAMES = {
+        0: "FILE",
+        1: "DIRECTORY",
+    }
+
+    _NAMES_TO_VALUES = {
+        "FILE": 0,
+        "DIRECTORY": 1,
+    }
+
+
+class InodeFlags(object):
+    DELETED = 1
+
+    _VALUES_TO_NAMES = {
+        1: "DELETED",
+    }
+
+    _NAMES_TO_VALUES = {
+        "DELETED": 1,
+    }
+
+
 class FileSystem(object):
     """
     Attributes:
      - name
-     - model
      - block_size
      - root
+     - model
     """
 
 
-    def __init__(self, name=None, model=None, block_size=None, root=None,):
+    def __init__(self, name=None, block_size=None, root=None, model=1,):
         self.name = name
-        self.model = model
         self.block_size = block_size
         self.root = root
+        self.model = model
 
     def read(self, iprot):
         if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
@@ -47,18 +89,18 @@ class FileSystem(object):
                 else:
                     iprot.skip(ftype)
             elif fid == 2:
-                if ftype == TType.BYTE:
-                    self.model = iprot.readByte()
-                else:
-                    iprot.skip(ftype)
-            elif fid == 3:
                 if ftype == TType.I32:
                     self.block_size = iprot.readI32()
                 else:
                     iprot.skip(ftype)
-            elif fid == 4:
+            elif fid == 3:
                 if ftype == TType.I64:
                     self.root = iprot.readI64()
+                else:
+                    iprot.skip(ftype)
+            elif fid == 4:
+                if ftype == TType.I32:
+                    self.model = iprot.readI32()
                 else:
                     iprot.skip(ftype)
             else:
@@ -75,22 +117,28 @@ class FileSystem(object):
             oprot.writeFieldBegin('name', TType.STRING, 1)
             oprot.writeString(self.name.encode('utf-8') if sys.version_info[0] == 2 else self.name)
             oprot.writeFieldEnd()
-        if self.model is not None:
-            oprot.writeFieldBegin('model', TType.BYTE, 2)
-            oprot.writeByte(self.model)
-            oprot.writeFieldEnd()
         if self.block_size is not None:
-            oprot.writeFieldBegin('block_size', TType.I32, 3)
+            oprot.writeFieldBegin('block_size', TType.I32, 2)
             oprot.writeI32(self.block_size)
             oprot.writeFieldEnd()
         if self.root is not None:
-            oprot.writeFieldBegin('root', TType.I64, 4)
+            oprot.writeFieldBegin('root', TType.I64, 3)
             oprot.writeI64(self.root)
             oprot.writeFieldEnd()
+        if self.model is not None:
+            oprot.writeFieldBegin('model', TType.I32, 4)
+            oprot.writeI32(self.model)
+            oprot.writeFieldEnd()
         oprot.writeFieldStop()
         oprot.writeStructEnd()
 
     def validate(self):
+        if self.name is None:
+            raise TProtocolException(message='Required field name is unset!')
+        if self.block_size is None:
+            raise TProtocolException(message='Required field block_size is unset!')
+        if self.root is None:
+            raise TProtocolException(message='Required field root is unset!')
         return
 
     def __repr__(self):
@@ -105,89 +153,16 @@ class FileSystem(object):
         return not (self == other)
 
 
-class FileBlock(object):
+class FileData(object):
     """
     Attributes:
-     - block
-     - ptr
-    """
-
-
-    def __init__(self, block=None, ptr=None,):
-        self.block = block
-        self.ptr = ptr
-
-    def read(self, iprot):
-        if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
-            iprot._fast_decode(self, iprot, [self.__class__, self.thrift_spec])
-            return
-        iprot.readStructBegin()
-        while True:
-            (fname, ftype, fid) = iprot.readFieldBegin()
-            if ftype == TType.STOP:
-                break
-            if fid == 1:
-                if ftype == TType.STRING:
-                    self.block = iprot.readBinary()
-                else:
-                    iprot.skip(ftype)
-            elif fid == 2:
-                if ftype == TType.STRING:
-                    self.ptr = iprot.readBinary()
-                else:
-                    iprot.skip(ftype)
-            else:
-                iprot.skip(ftype)
-            iprot.readFieldEnd()
-        iprot.readStructEnd()
-
-    def write(self, oprot):
-        if oprot._fast_encode is not None and self.thrift_spec is not None:
-            oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
-            return
-        oprot.writeStructBegin('FileBlock')
-        if self.block is not None:
-            oprot.writeFieldBegin('block', TType.STRING, 1)
-            oprot.writeBinary(self.block)
-            oprot.writeFieldEnd()
-        if self.ptr is not None:
-            oprot.writeFieldBegin('ptr', TType.STRING, 2)
-            oprot.writeBinary(self.ptr)
-            oprot.writeFieldEnd()
-        oprot.writeFieldStop()
-        oprot.writeStructEnd()
-
-    def validate(self):
-        return
-
-    def __repr__(self):
-        L = ['%s=%r' % (key, value)
-             for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
-
-    def __eq__(self, other):
-        return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
-
-    def __ne__(self, other):
-        return not (self == other)
-
-
-class FileInode(object):
-    """
-    Attributes:
-     - inumber
      - size
-     - mtime
-     - mode
      - blocks
     """
 
 
-    def __init__(self, inumber=None, size=None, mtime=None, mode=None, blocks=None,):
-        self.inumber = inumber
+    def __init__(self, size=None, blocks=None,):
         self.size = size
-        self.mtime = mtime
-        self.mode = mode
         self.blocks = blocks
 
     def read(self, iprot):
@@ -201,31 +176,15 @@ class FileInode(object):
                 break
             if fid == 1:
                 if ftype == TType.I64:
-                    self.inumber = iprot.readI64()
-                else:
-                    iprot.skip(ftype)
-            elif fid == 2:
-                if ftype == TType.I64:
                     self.size = iprot.readI64()
                 else:
                     iprot.skip(ftype)
-            elif fid == 3:
-                if ftype == TType.I64:
-                    self.mtime = iprot.readI64()
-                else:
-                    iprot.skip(ftype)
-            elif fid == 4:
-                if ftype == TType.I32:
-                    self.mode = iprot.readI32()
-                else:
-                    iprot.skip(ftype)
-            elif fid == 5:
+            elif fid == 2:
                 if ftype == TType.LIST:
                     self.blocks = []
                     (_etype3, _size0) = iprot.readListBegin()
                     for _i4 in range(_size0):
-                        _elem5 = FileBlock()
-                        _elem5.read(iprot)
+                        _elem5 = iprot.readBinary()
                         self.blocks.append(_elem5)
                     iprot.readListEnd()
                 else:
@@ -239,34 +198,24 @@ class FileInode(object):
         if oprot._fast_encode is not None and self.thrift_spec is not None:
             oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
             return
-        oprot.writeStructBegin('FileInode')
-        if self.inumber is not None:
-            oprot.writeFieldBegin('inumber', TType.I64, 1)
-            oprot.writeI64(self.inumber)
-            oprot.writeFieldEnd()
+        oprot.writeStructBegin('FileData')
         if self.size is not None:
-            oprot.writeFieldBegin('size', TType.I64, 2)
+            oprot.writeFieldBegin('size', TType.I64, 1)
             oprot.writeI64(self.size)
             oprot.writeFieldEnd()
-        if self.mtime is not None:
-            oprot.writeFieldBegin('mtime', TType.I64, 3)
-            oprot.writeI64(self.mtime)
-            oprot.writeFieldEnd()
-        if self.mode is not None:
-            oprot.writeFieldBegin('mode', TType.I32, 4)
-            oprot.writeI32(self.mode)
-            oprot.writeFieldEnd()
         if self.blocks is not None:
-            oprot.writeFieldBegin('blocks', TType.LIST, 5)
-            oprot.writeListBegin(TType.STRUCT, len(self.blocks))
+            oprot.writeFieldBegin('blocks', TType.LIST, 2)
+            oprot.writeListBegin(TType.STRING, len(self.blocks))
             for iter6 in self.blocks:
-                iter6.write(oprot)
+                oprot.writeBinary(iter6)
             oprot.writeListEnd()
             oprot.writeFieldEnd()
         oprot.writeFieldStop()
         oprot.writeStructEnd()
 
     def validate(self):
+        if self.size is None:
+            raise TProtocolException(message='Required field size is unset!')
         return
 
     def __repr__(self):
@@ -281,17 +230,19 @@ class FileInode(object):
         return not (self == other)
 
 
-class DirInode(object):
+class DirEntry(object):
     """
     Attributes:
      - inumber
-     - mtime
+     - type
+     - name
     """
 
 
-    def __init__(self, inumber=None, mtime=None,):
+    def __init__(self, inumber=None, type=None, name=None,):
         self.inumber = inumber
-        self.mtime = mtime
+        self.type = type
+        self.name = name
 
     def read(self, iprot):
         if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
@@ -308,8 +259,13 @@ class DirInode(object):
                 else:
                     iprot.skip(ftype)
             elif fid == 2:
-                if ftype == TType.I64:
-                    self.mtime = iprot.readI64()
+                if ftype == TType.I32:
+                    self.type = iprot.readI32()
+                else:
+                    iprot.skip(ftype)
+            elif fid == 3:
+                if ftype == TType.STRING:
+                    self.name = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
                 else:
                     iprot.skip(ftype)
             else:
@@ -321,14 +277,89 @@ class DirInode(object):
         if oprot._fast_encode is not None and self.thrift_spec is not None:
             oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
             return
-        oprot.writeStructBegin('DirInode')
+        oprot.writeStructBegin('DirEntry')
         if self.inumber is not None:
             oprot.writeFieldBegin('inumber', TType.I64, 1)
             oprot.writeI64(self.inumber)
             oprot.writeFieldEnd()
-        if self.mtime is not None:
-            oprot.writeFieldBegin('mtime', TType.I64, 2)
-            oprot.writeI64(self.mtime)
+        if self.type is not None:
+            oprot.writeFieldBegin('type', TType.I32, 2)
+            oprot.writeI32(self.type)
+            oprot.writeFieldEnd()
+        if self.name is not None:
+            oprot.writeFieldBegin('name', TType.STRING, 3)
+            oprot.writeString(self.name.encode('utf-8') if sys.version_info[0] == 2 else self.name)
+            oprot.writeFieldEnd()
+        oprot.writeFieldStop()
+        oprot.writeStructEnd()
+
+    def validate(self):
+        if self.inumber is None:
+            raise TProtocolException(message='Required field inumber is unset!')
+        if self.type is None:
+            raise TProtocolException(message='Required field type is unset!')
+        if self.name is None:
+            raise TProtocolException(message='Required field name is unset!')
+        return
+
+    def __repr__(self):
+        L = ['%s=%r' % (key, value)
+             for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        return not (self == other)
+
+
+class DirData(object):
+    """
+    Attributes:
+     - entries
+    """
+
+
+    def __init__(self, entries=None,):
+        self.entries = entries
+
+    def read(self, iprot):
+        if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
+            iprot._fast_decode(self, iprot, [self.__class__, self.thrift_spec])
+            return
+        iprot.readStructBegin()
+        while True:
+            (fname, ftype, fid) = iprot.readFieldBegin()
+            if ftype == TType.STOP:
+                break
+            if fid == 1:
+                if ftype == TType.LIST:
+                    self.entries = []
+                    (_etype10, _size7) = iprot.readListBegin()
+                    for _i11 in range(_size7):
+                        _elem12 = DirEntry()
+                        _elem12.read(iprot)
+                        self.entries.append(_elem12)
+                    iprot.readListEnd()
+                else:
+                    iprot.skip(ftype)
+            else:
+                iprot.skip(ftype)
+            iprot.readFieldEnd()
+        iprot.readStructEnd()
+
+    def write(self, oprot):
+        if oprot._fast_encode is not None and self.thrift_spec is not None:
+            oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
+            return
+        oprot.writeStructBegin('DirData')
+        if self.entries is not None:
+            oprot.writeFieldBegin('entries', TType.LIST, 1)
+            oprot.writeListBegin(TType.STRUCT, len(self.entries))
+            for iter13 in self.entries:
+                iter13.write(oprot)
+            oprot.writeListEnd()
             oprot.writeFieldEnd()
         oprot.writeFieldStop()
         oprot.writeStructEnd()
@@ -351,14 +382,24 @@ class DirInode(object):
 class Inode(object):
     """
     Attributes:
-     - file
-     - directory
+     - id
+     - inumber
+     - type
+     - mtime
+     - flags
+     - file_data
+     - directory_data
     """
 
 
-    def __init__(self, file=None, directory=None,):
-        self.file = file
-        self.directory = directory
+    def __init__(self, id=None, inumber=None, type=None, mtime=None, flags=0, file_data=None, directory_data=None,):
+        self.id = id
+        self.inumber = inumber
+        self.type = type
+        self.mtime = mtime
+        self.flags = flags
+        self.file_data = file_data
+        self.directory_data = directory_data
 
     def read(self, iprot):
         if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
@@ -370,15 +411,40 @@ class Inode(object):
             if ftype == TType.STOP:
                 break
             if fid == 1:
-                if ftype == TType.STRUCT:
-                    self.file = FileInode()
-                    self.file.read(iprot)
+                if ftype == TType.I64:
+                    self.id = iprot.readI64()
                 else:
                     iprot.skip(ftype)
             elif fid == 2:
+                if ftype == TType.I64:
+                    self.inumber = iprot.readI64()
+                else:
+                    iprot.skip(ftype)
+            elif fid == 3:
+                if ftype == TType.I32:
+                    self.type = iprot.readI32()
+                else:
+                    iprot.skip(ftype)
+            elif fid == 4:
+                if ftype == TType.I64:
+                    self.mtime = iprot.readI64()
+                else:
+                    iprot.skip(ftype)
+            elif fid == 5:
+                if ftype == TType.I32:
+                    self.flags = iprot.readI32()
+                else:
+                    iprot.skip(ftype)
+            elif fid == 6:
                 if ftype == TType.STRUCT:
-                    self.directory = DirInode()
-                    self.directory.read(iprot)
+                    self.file_data = FileData()
+                    self.file_data.read(iprot)
+                else:
+                    iprot.skip(ftype)
+            elif fid == 7:
+                if ftype == TType.STRUCT:
+                    self.directory_data = DirData()
+                    self.directory_data.read(iprot)
                 else:
                     iprot.skip(ftype)
             else:
@@ -391,18 +457,46 @@ class Inode(object):
             oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
             return
         oprot.writeStructBegin('Inode')
-        if self.file is not None:
-            oprot.writeFieldBegin('file', TType.STRUCT, 1)
-            self.file.write(oprot)
+        if self.id is not None:
+            oprot.writeFieldBegin('id', TType.I64, 1)
+            oprot.writeI64(self.id)
             oprot.writeFieldEnd()
-        if self.directory is not None:
-            oprot.writeFieldBegin('directory', TType.STRUCT, 2)
-            self.directory.write(oprot)
+        if self.inumber is not None:
+            oprot.writeFieldBegin('inumber', TType.I64, 2)
+            oprot.writeI64(self.inumber)
+            oprot.writeFieldEnd()
+        if self.type is not None:
+            oprot.writeFieldBegin('type', TType.I32, 3)
+            oprot.writeI32(self.type)
+            oprot.writeFieldEnd()
+        if self.mtime is not None:
+            oprot.writeFieldBegin('mtime', TType.I64, 4)
+            oprot.writeI64(self.mtime)
+            oprot.writeFieldEnd()
+        if self.flags is not None:
+            oprot.writeFieldBegin('flags', TType.I32, 5)
+            oprot.writeI32(self.flags)
+            oprot.writeFieldEnd()
+        if self.file_data is not None:
+            oprot.writeFieldBegin('file_data', TType.STRUCT, 6)
+            self.file_data.write(oprot)
+            oprot.writeFieldEnd()
+        if self.directory_data is not None:
+            oprot.writeFieldBegin('directory_data', TType.STRUCT, 7)
+            self.directory_data.write(oprot)
             oprot.writeFieldEnd()
         oprot.writeFieldStop()
         oprot.writeStructEnd()
 
     def validate(self):
+        if self.id is None:
+            raise TProtocolException(message='Required field id is unset!')
+        if self.inumber is None:
+            raise TProtocolException(message='Required field inumber is unset!')
+        if self.type is None:
+            raise TProtocolException(message='Required field type is unset!')
+        if self.mtime is None:
+            raise TProtocolException(message='Required field mtime is unset!')
         return
 
     def __repr__(self):
@@ -419,36 +513,38 @@ all_structs.append(FileSystem)
 FileSystem.thrift_spec = (
     None,  # 0
     (1, TType.STRING, 'name', 'UTF8', None, ),  # 1
-    (2, TType.BYTE, 'model', None, None, ),  # 2
-    (3, TType.I32, 'block_size', None, None, ),  # 3
-    (4, TType.I64, 'root', None, None, ),  # 4
+    (2, TType.I32, 'block_size', None, None, ),  # 2
+    (3, TType.I64, 'root', None, None, ),  # 3
+    (4, TType.I32, 'model', None, 1, ),  # 4
 )
-all_structs.append(FileBlock)
-FileBlock.thrift_spec = (
+all_structs.append(FileData)
+FileData.thrift_spec = (
     None,  # 0
-    (1, TType.STRING, 'block', 'BINARY', None, ),  # 1
-    (2, TType.STRING, 'ptr', 'BINARY', None, ),  # 2
+    (1, TType.I64, 'size', None, None, ),  # 1
+    (2, TType.LIST, 'blocks', (TType.STRING, 'BINARY', False), None, ),  # 2
 )
-all_structs.append(FileInode)
-FileInode.thrift_spec = (
-    None,  # 0
-    (1, TType.I64, 'inumber', None, None, ),  # 1
-    (2, TType.I64, 'size', None, None, ),  # 2
-    (3, TType.I64, 'mtime', None, None, ),  # 3
-    (4, TType.I32, 'mode', None, None, ),  # 4
-    (5, TType.LIST, 'blocks', (TType.STRUCT, [FileBlock, None], False), None, ),  # 5
-)
-all_structs.append(DirInode)
-DirInode.thrift_spec = (
+all_structs.append(DirEntry)
+DirEntry.thrift_spec = (
     None,  # 0
     (1, TType.I64, 'inumber', None, None, ),  # 1
-    (2, TType.I64, 'mtime', None, None, ),  # 2
+    (2, TType.I32, 'type', None, None, ),  # 2
+    (3, TType.STRING, 'name', 'UTF8', None, ),  # 3
+)
+all_structs.append(DirData)
+DirData.thrift_spec = (
+    None,  # 0
+    (1, TType.LIST, 'entries', (TType.STRUCT, [DirEntry, None], False), None, ),  # 1
 )
 all_structs.append(Inode)
 Inode.thrift_spec = (
     None,  # 0
-    (1, TType.STRUCT, 'file', [FileInode, None], None, ),  # 1
-    (2, TType.STRUCT, 'directory', [DirInode, None], None, ),  # 2
+    (1, TType.I64, 'id', None, None, ),  # 1
+    (2, TType.I64, 'inumber', None, None, ),  # 2
+    (3, TType.I32, 'type', None, None, ),  # 3
+    (4, TType.I64, 'mtime', None, None, ),  # 4
+    (5, TType.I32, 'flags', None, 0, ),  # 5
+    (6, TType.STRUCT, 'file_data', [FileData, None], None, ),  # 6
+    (7, TType.STRUCT, 'directory_data', [DirData, None], None, ),  # 7
 )
 fix_spec(all_structs)
 del all_structs
