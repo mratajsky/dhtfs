@@ -1,8 +1,10 @@
+import bisect
 import logging
 import multiprocessing
 import os
 import queue
 import threading
+from contextlib import contextmanager
 
 from thrift.transport import TSocket
 from thrift.transport import TTransport
@@ -16,10 +18,15 @@ from ..thrift.rpc.ttypes import Peer, Bucket, BucketValue, StorageException
 logger = logging.getLogger(__name__)
 
 
+BucketValue.__lt__ = lambda self, other: self.search_key < other.search_key
+
+
 class Handler:
     def __init__(self, db, pipe, results, condition):
         self._db = db
         self._dht_pipe = pipe
+        self._bucket_locks = {}
+        self._bucket_lock_global = threading.Lock()
         self._results = results
         self._condition = condition
 
@@ -38,10 +45,19 @@ class Handler:
         logger.debug(f"RPC: Put({key.hex()}, ...)")
         self._db.put(key, value)
 
-    def Add(self, key, value):
-        # logger.debug(f"RPC: Add({key.hex()}, ...)")
-        # TODO: add to leaf bucket
-        pass
+    def Add(self, key, search_key_min, search_key_max, value: BucketValue):
+        logger.debug(f"RPC: Add({key.hex()}, ...)")
+        with self._lock_bucket(key):
+            bucket = self._db.get(key)
+            if bucket is not None:
+                bucket = thrift_unserialize(bucket, Bucket())
+                # TODO: this is not total ordering
+                bisect.insort_right(bucket.values, value)
+            else:
+                bucket = Bucket(search_key_min=search_key_min,
+                                search_key_max=search_key_max,
+                                values=[value])
+            self._db.put(key, thrift_serialize(bucket))
 
     def Get(self, key):
         logger.debug(f"RPC: Get({key.hex()})")
@@ -52,12 +68,45 @@ class Handler:
         return value
 
     def GetLatest(self, key):
-        # TODO: get item from leaf bucket with latest search key
-        pass
+        return self._get_nonempty_bucket(key).values[-1]
 
-    def GetRange(self, key, searchKeyLow, searchKeyHigh):
-        # TODO: get items in range from leaf bucket
-        pass
+    def GetLatestMax(self, key, search_key_max):
+        bucket = self._get_nonempty_bucket(key)
+        idx = bisect.bisect_right(bucket.values, search_key_max)
+        if idx == 0:
+            raise StorageException(404, 'No matching value found')
+        return bucket.values[idx - 1]
+
+    def GetRange(self, key, search_key_min, search_key_max):
+        try:
+            bucket = self._get_nonempty_bucket(key)
+            idx_min = bisect.bisect_left(bucket.values, search_key_min)
+            if idx_min == len(bucket.values):
+                return []
+            idx_max = bisect.bisect_right(bucket.values, search_key_max)
+            if idx_max == 0:
+                return []
+            return bucket.values[idx_min:idx_max]
+        except StorageException:
+            # Empty bucket
+            return []
+
+    def _get_nonempty_bucket(self, key) -> Bucket:
+        bucket = self._db.get(key)
+        if bucket is not None:
+            bucket = thrift_unserialize(bucket, Bucket())
+        if bucket is None or len(bucket.values) == 0:
+            raise StorageException(404, 'Bucket is empty')
+        return bucket
+
+    @contextmanager
+    def _lock_bucket(self, key):
+        with self._bucket_lock_global:
+            lock = self._bucket_locks.get(key)
+            if lock is None:
+                lock = self._bucket_locks[key] = threading.Lock()
+        with lock:
+            yield
 
     def _wait_for_result(self, wanted_ident):
         with self._condition:
