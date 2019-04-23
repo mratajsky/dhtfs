@@ -1,5 +1,6 @@
 import datetime
 import logging
+import random
 
 from kademlia.utils import digest
 
@@ -82,6 +83,7 @@ class Client:
         assert self._connected
         # Store the root inode first
         value = Inode(
+            id=random.getrandbits(63),
             type=InodeType.DIRECTORY,
             inumber=inumber,
             mtime=int(datetime.datetime.now().timestamp()),
