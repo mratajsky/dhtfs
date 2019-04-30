@@ -16,9 +16,6 @@ from ..utils import thrift_serialize, thrift_unserialize
 
 logger = logging.getLogger(__name__)
 
-# Make BucketValue sortable
-BucketValue.__lt__ = lambda self, other: self.search_key < other.search_key
-
 
 class Handler:
     def __init__(self, db, pipe, results, condition):
