@@ -11,9 +11,9 @@ from thrift.transport import TTransport
 from thrift.protocol import TBinaryProtocol
 from thrift.server import TServer
 
-from .utils import thrift_serialize, thrift_unserialize
 from ..thrift.rpc.Rpc import Processor
 from ..thrift.rpc.ttypes import Peer, Bucket, BucketValue, StorageException
+from ..utils import thrift_serialize, thrift_unserialize
 
 logger = logging.getLogger(__name__)
 

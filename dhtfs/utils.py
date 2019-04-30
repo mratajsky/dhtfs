@@ -1,6 +1,9 @@
 import logging
 from collections import namedtuple
 
+from thrift.transport import TTransport
+from thrift.protocol import TBinaryProtocol
+
 __all__ = ['defaults',
            'setup_logging']
 
@@ -30,3 +33,21 @@ def setup_logging(verbosity):
     else:
         # Use the default logging level
         logging.basicConfig(format=logformat)
+
+
+def thrift_serialize(obj):
+    '''Serialize the given Thrift object and return a binary value.'''
+    transport = TTransport.TMemoryBuffer()
+    protocol = TBinaryProtocol.TBinaryProtocolAccelerated(transport)
+
+    obj.write(protocol)
+    return transport.getvalue()
+
+
+def thrift_unserialize(value, obj):
+    '''Unserialize the given binary value into the given object.'''
+    transport = TTransport.TMemoryBuffer(value)
+    protocol = TBinaryProtocol.TBinaryProtocolAccelerated(transport)
+
+    obj.read(protocol)
+    return obj

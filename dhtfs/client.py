@@ -8,10 +8,10 @@ from thrift.transport import TSocket
 from thrift.transport import TTransport
 from thrift.protocol import TBinaryProtocol
 
-from .peer.utils import thrift_serialize, thrift_unserialize
 from .thrift.metadata.ttypes import FileSystem, FileSystemModel, Inode, InodeType, DirData
 from .thrift.rpc import Rpc
 from .thrift.rpc.ttypes import Bucket, BucketValue, Peer, StorageException
+from .utils import thrift_serialize, thrift_unserialize
 
 logger = logging.getLogger(__name__)
 
