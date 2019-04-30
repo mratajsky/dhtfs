@@ -14,3 +14,4 @@ plyvel = "*"
 appdirs = "*"
 dhtfs-peer = {editable = true,path = "."}
 python-dateutil = "*"
+dhtfs = {editable = true,path = "."}
