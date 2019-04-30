@@ -143,7 +143,7 @@ class Client:
     def _get_inode_value_or_bucket(self, fs_name, inumber):
         fs_desc = self.get_filesystem(fs_name)
         if fs_desc is None:
-            return None
+            return None, None
         value = self.get_iterative(f'I:{fs_name}:{inumber}')
         if value is not None:
             if fs_desc.model == FileSystemModel.PASTIS:
