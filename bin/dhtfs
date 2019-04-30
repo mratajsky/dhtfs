@@ -23,31 +23,35 @@ def parse_args():
     group = parser.add_argument_group('general options')
     group.add_argument('-H', '--host', type=str,
                        help=f'DHT peer host (default: {defaults.host})')
-    group.add_argument('-n', '--name', type=str,
-                       help=f'file system name (default: {defaults.name})')
     group.add_argument('-p', '--port', type=str,
                        help=f'DHT peer port (default: {defaults.port})')
     group.add_argument('-v', '--verbose', action='count',
                        help='enable verbose output (use up to twice)')
-    group.set_defaults(host=defaults.host, port=defaults.port,
-                       name=defaults.name)
+    group.set_defaults(host=defaults.host, port=defaults.port)
 
     commands = parser.add_subparsers(title='commands', dest='command',
                                      required=True)
 
     # Create command
     cparser = commands.add_parser('create')
+    cparser.add_argument('name', type=str, nargs='?',
+                         help=f'file system name (default: {defaults.name})')
     cparser.add_argument('-b', '--block-size', type=int,
                          help=f'block size in bytes (default: {defaults.block_size})')
     cparser.add_argument('-m', '--model', type=int,
                          help=f'model to use (default: {defaults.model})')
     cparser.add_argument('-r', '--root', type=int,
                          help=f'root inode number (default: random)')
-    cparser.set_defaults(block_size=defaults.block_size,
+    cparser.set_defaults(name=defaults.name,
+                         block_size=defaults.block_size,
                          model=defaults.model)
 
     # Mount command
     cparser = commands.add_parser('mount')
+    cparser.add_argument('mountpoint', type=str,
+                         help='file system mounting point')
+    cparser.add_argument('name', type=str, nargs='?',
+                         help=f'file system name (default: {defaults.name})')
     cparser.add_argument('-a', '--at', type=dateutil_parse,
                          help='date and time of the file system snapshot')
     cparser.add_argument('-c', '--cache', type=str,
@@ -56,30 +60,33 @@ def parse_args():
                          help='enable debugging in dhtfs-fuse')
     cparser.add_argument('-e', '--exec', type=str,
                          help='custom path to the dhtfs-fuse executable')
-    cparser.add_argument('mountpoint', type=str,
-                         help='file system mounting point')
+    cparser.set_defaults(name=defaults.name)
 
     # DHT commands
     cparser = commands.add_parser('get-key')
-    cparser.add_argument('key', type=str, help='DHT key to lookup')
-    cparser.add_argument('-t', '--type', type=str,
-                         help='type of item (one of: filesystem, inode)',
-                         choices=['filesystem', 'inode'])
+    cparser.add_argument('key', type=str, help='DHT key string to lookup')
     cparser.set_defaults(command='dht-get', get='key', hash=False)
 
     cparser = commands.add_parser('get-key-hash')
-    cparser.add_argument('key', type=str, help='DHT key to lookup')
-    cparser.add_argument('-t', '--type', type=str,
-                         help='type of item (one of: filesystem, inode)',
-                         choices=['filesystem', 'inode'])
+    cparser.add_argument('key', type=str, help='DHT key hash to lookup')
     cparser.set_defaults(command='dht-get', get='key', hash=True)
 
     cparser = commands.add_parser('get-filesystem')
-    cparser.set_defaults(command='dht-get', get='filesystem')
+    cparser.add_argument('name', type=str, nargs='?',
+                         help=f'file system name (default: {defaults.name})')
+    cparser.set_defaults(name=defaults.name,
+                         command='dht-get', get='filesystem')
 
     cparser = commands.add_parser('get-inode')
-    cparser.add_argument('inode', type=str, help='inode number')
-    cparser.set_defaults(command='dht-get', get='inode')
+    cparser.add_argument('inumber', type=str, help='inode number')
+    cparser.add_argument('name', type=str, nargs='?',
+                         help=f'file system name (default: {defaults.name})')
+    cparser.add_argument('-l', '--latest', action='store_true',
+                         help='retrieve inode with the latest timestamp')
+    cparser.add_argument('-m', '--max-key', type=int,
+                         help='upper bound on the latest timestamp')
+    cparser.set_defaults(name=defaults.name,
+                         command='dht-get', get='inode')
 
     return parser.parse_args()
 
@@ -90,6 +97,22 @@ def create_client(host, port):
     return client
 
 
+def get_filesystem(host, port, name):
+    return create_client(host, port).get_filesystem(name)
+
+
+def get_inode(host, port, inumber, fs_name, latest=False, max_key=None):
+    client = create_client(host, port)
+    if latest:
+        return client.get_inode_latest(fs_name, inumber, max_key)
+    else:
+        return client.get_inode(fs_name, inumber)
+
+
+def get_value_digest(host, port, kd):
+    return create_client(host, port).get_iterative_digest(kd)
+
+
 def mount(args):
     # Verify the executable
     if args.exec is not None:
@@ -98,20 +121,22 @@ def mount(args):
                 os.F_OK | os.X_OK):
             print(f'{args.exec} is not an executable file')
             return
-        exec = args.exec
+        executable = args.exec
     else:
-        exec = shutil.which('dhtfs-fuse')
-        if exec is None:
+        executable = shutil.which('dhtfs-fuse')
+        if executable is None:
             print(f'Could not find dhtfs-fuse in PATH')
             return
     fuse_args = [
-        os.path.basename(exec),
+        os.path.basename(executable),
         '-o', f'host={args.host}',
         '-o', f'port={args.port}',
         '-o', f'name={args.name}',
     ]
     if args.cache is not None:
         fuse_args.extend(['-o', f'cache={args.cache}'])
+    if args.at is not None:
+        fuse_args.extend(['-o', f'snapshot={int(args.at.timestamp())}'])
     env = os.environ.copy()
     if args.debug:
         fuse_args.append('-d')
@@ -119,8 +144,11 @@ def mount(args):
         env['G_MESSAGES_DEBUG'] = 'all'
     fuse_args.append(args.mountpoint)
 
-    print(f'Mounting "{args.name}" on {args.mountpoint}')
-    os.execve(exec, fuse_args, env)
+    if args.at:
+        print(f'Mounting "{args.name}" on {args.mountpoint} @ {args.at}')
+    else:
+        print(f'Mounting "{args.name}" on {args.mountpoint}')
+    os.execve(executable, fuse_args, env)
 
 
 def run():
@@ -139,31 +167,21 @@ def run():
     elif args.command == 'mount':
         mount(args)
     elif args.command == 'dht-get':
-        translate = None
-        # Translators for known types
-        if (args.get == 'key' and args.type == 'filesystem') or args.get == 'filesystem':
-            translate = lambda val: thrift_unserialize(val, FileSystem())
-        if (args.get == 'key' and args.type == 'inode') or args.get == 'inode':
-            translate = lambda val: thrift_unserialize(val, Inode())
-
-        if args.get == 'key' and args.hash:
-            kd = bytes.fromhex(args.key)
+        if args.get == 'filesystem':
+            value = get_filesystem(args.host, args.port, args.name)
+        elif args.get == 'inode':
+            value = get_inode(args.host, args.port, args.inumber, args.name,
+                              args.latest, args.max_key)
         else:
-            # Create the DHT key when not given explicitly
-            if args.get == 'filesystem':
-                key = f'F:{args.name}'
-            elif args.get == 'inode':
-                key = f'I:{args.name}:{args.inode}'
+            if args.hash:
+                kd = bytes.fromhex(args.key)
             else:
-                raise RuntimeError(f'Invalid get command: {args.get}')
+                kd = digest(args.key)
+                logging.info(f'DHT key: {args.key} -> {kd.hex()}')
 
-            kd = digest(key)
-            logging.info(f'DHT key: {key} -> {kd.hex()}')
+            value = get_value_digest(args.host, args.port, kd)
 
-        value = create_client(args.host, args.port).get_iterative_digest(kd)
         if value is not None:
-            if translate is not None:
-                value = translate(value)
             print(value)
         else:
             print('Value not found')
