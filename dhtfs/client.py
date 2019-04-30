@@ -42,7 +42,9 @@ class Client:
         assert self._connected
         kd = digest(key)
         logging.info(f'Storing {key} -> {kd.hex()}')
-        return self.add_iterative_digest(kd, bucket_value, search_key_min, search_key_max)
+        return self.add_iterative_digest(kd, bucket_value,
+                                         search_key_min,
+                                         search_key_max)
 
     def add_iterative_digest(self, kd, bucket_value, search_key_min, search_key_max):
         assert self._connected
@@ -140,6 +142,14 @@ class Client:
             bucket_value.value = thrift_unserialize(bucket_value.value, Inode())
         return bucket_value
 
+    def get_inode_range(self, fs_name, inumber, min_key, max_key):
+        values = self.get_iterative(f'I:{fs_name}:{inumber}', 'GetRange',
+                                    min_key,
+                                    max_key)
+        for bucket_value in values:
+            bucket_value.value = thrift_unserialize(bucket_value.value, Inode())
+        return values
+
     def _get_inode_value_or_bucket(self, fs_name, inumber):
         fs_desc = self.get_filesystem(fs_name)
         if fs_desc is None:
@@ -187,6 +197,11 @@ class Client:
         assert self._connected
         logging.debug(f'GetLatestMax: {self._host}:{self._port}')
         return self._client.GetLatestMax(kd, max_key)
+
+    def GetRange(self, kd, min_key, max_key):
+        assert self._connected
+        logging.debug(f'GetRange: {self._host}:{self._port}')
+        return self._client.GetRange(kd, min_key, max_key)
 
     def Put(self, kd, bin_value):
         assert self._connected

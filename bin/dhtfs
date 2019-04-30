@@ -83,9 +83,18 @@ def parse_args():
     cparser.add_argument('-l', '--latest', action='store_true',
                          help='retrieve inode with the latest timestamp')
     cparser.add_argument('-m', '--max-key', type=int,
-                         help='upper bound on the latest timestamp')
+                         help='upper bound on the latest timestamp (for -l)')
     cparser.set_defaults(name=defaults.name,
                          command='dht-get', get='inode')
+
+    cparser = commands.add_parser('get-inode-range')
+    cparser.add_argument('inumber', type=str, help='inode number')
+    cparser.add_argument('min', type=int, help='minimal timestamp')
+    cparser.add_argument('max', type=int, help='maximal timestmap')
+    cparser.add_argument('name', type=str, nargs='?',
+                         help=f'file system name (default: {defaults.name})')
+    cparser.set_defaults(name=defaults.name,
+                         command='dht-get', get='inode-range')
 
     return parser.parse_args()
 
@@ -106,6 +115,10 @@ def get_inode(host, port, inumber, fs_name, latest=False, max_key=None):
         return client.get_inode_latest(fs_name, inumber, max_key)
     else:
         return client.get_inode(fs_name, inumber)
+
+
+def get_inode_range(host, port, inumber, fs_name, min_key, max_key):
+    return create_client(host, port).get_inode_range(fs_name, inumber, min_key, max_key)
 
 
 def get_value_digest(host, port, kd):
@@ -171,6 +184,9 @@ def run():
         elif args.get == 'inode':
             value = get_inode(args.host, args.port, args.inumber, args.name,
                               args.latest, args.max_key)
+        elif args.get == 'inode-range':
+            value = get_inode_range(args.host, args.port, args.inumber, args.name,
+                                    args.min, args.max)
         else:
             if args.hash:
                 kd = bytes.fromhex(args.key)
