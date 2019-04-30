@@ -1,4 +1,3 @@
-import bisect
 import logging
 import multiprocessing
 import os
@@ -45,14 +44,14 @@ class Handler:
         logger.debug(f"RPC: Put({key.hex()}, ...)")
         self._db.put(key, value)
 
-    def Add(self, key, search_key_min, search_key_max, value: BucketValue):
-        logger.debug(f"RPC: Add({key.hex()}, ...)")
+    def Add(self, key, value: BucketValue, search_key_min, search_key_max):
+        logger.debug(f"RPC: Add({key.hex()}, {search_key_min}, {search_key_max}, ...)")
         with self._lock_bucket(key):
             bucket = self._db.get(key)
             if bucket is not None:
                 bucket = thrift_unserialize(bucket, Bucket())
                 # TODO: this is not total ordering
-                bisect.insort_right(bucket.values, value)
+                self.insort_right(bucket.values, value)
             else:
                 bucket = Bucket(search_key_min=search_key_min,
                                 search_key_max=search_key_max,
@@ -68,22 +67,25 @@ class Handler:
         return value
 
     def GetLatest(self, key):
+        logger.debug(f"RPC: GetLatest({key.hex()})")
         return self._get_nonempty_bucket(key).values[-1]
 
     def GetLatestMax(self, key, search_key_max):
+        logger.debug(f"RPC: GetLatestMax({key.hex()}, {search_key_max})")
         bucket = self._get_nonempty_bucket(key)
-        idx = bisect.bisect_right(bucket.values, search_key_max)
+        idx = self.bisect_right(bucket.values, search_key_max)
         if idx == 0:
             raise StorageException(404, 'No matching value found')
         return bucket.values[idx - 1]
 
     def GetRange(self, key, search_key_min, search_key_max):
+        logger.debug(f"RPC: GetRange({key.hex()}, {search_key_min}, {search_key_max})")
         try:
             bucket = self._get_nonempty_bucket(key)
-            idx_min = bisect.bisect_left(bucket.values, search_key_min)
+            idx_min = self.bisect_left(bucket.values, search_key_min)
             if idx_min == len(bucket.values):
                 return []
-            idx_max = bisect.bisect_right(bucket.values, search_key_max)
+            idx_max = self.bisect_right(bucket.values, search_key_max)
             if idx_max == 0:
                 return []
             return bucket.values[idx_min:idx_max]
@@ -113,6 +115,50 @@ class Handler:
             while self._results.get(wanted_ident) is None:
                 self._condition.wait()
             return self._results.pop(wanted_ident)
+
+    # Bisection functions adapted from the bisect module
+
+    @staticmethod
+    def insort_right(a, x: BucketValue, lo=0, hi=None):
+        if lo < 0:
+            raise ValueError('lo must be non-negative')
+        if hi is None:
+            hi = len(a)
+        while lo < hi:
+            mid = (lo + hi) // 2
+            if x.search_key < a[mid].search_key:
+                hi = mid
+            else:
+                lo = mid + 1
+        a.insert(lo, x)
+
+    @staticmethod
+    def bisect_left(a, x: int, lo=0, hi=None):
+        if lo < 0:
+            raise ValueError('lo must be non-negative')
+        if hi is None:
+            hi = len(a)
+        while lo < hi:
+            mid = (lo + hi) // 2
+            if a[mid].search_key < x:
+                lo = mid + 1
+            else:
+                hi = mid
+        return lo
+
+    @staticmethod
+    def bisect_right(a, x: int, lo=0, hi=None):
+        if lo < 0:
+            raise ValueError('lo must be non-negative')
+        if hi is None:
+            hi = len(a)
+        while lo < hi:
+            mid = (lo + hi) // 2
+            if x < a[mid].search_key:
+                hi = mid
+            else:
+                lo = mid + 1
+        return lo
 
 
 class RPC:
