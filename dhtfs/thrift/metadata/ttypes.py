@@ -19,30 +19,36 @@ all_structs = []
 class FileSystemModel(object):
     PASTIS = 0
     BASIC = 1
+    PUBSUB = 2
 
     _VALUES_TO_NAMES = {
         0: "PASTIS",
         1: "BASIC",
+        2: "PUBSUB",
     }
 
     _NAMES_TO_VALUES = {
         "PASTIS": 0,
         "BASIC": 1,
+        "PUBSUB": 2,
     }
 
 
 class InodeType(object):
     FILE = 0
     DIRECTORY = 1
+    SYMLINK = 2
 
     _VALUES_TO_NAMES = {
         0: "FILE",
         1: "DIRECTORY",
+        2: "SYMLINK",
     }
 
     _NAMES_TO_VALUES = {
         "FILE": 0,
         "DIRECTORY": 1,
+        "SYMLINK": 2,
     }
 
 
@@ -67,14 +73,16 @@ class FileSystem(object):
      - name
      - block_size
      - root
+     - inception
      - model
     """
 
 
-    def __init__(self, name=None, block_size=None, root=None, model=1,):
+    def __init__(self, name=None, block_size=None, root=None, inception=None, model=1,):
         self.name = name
         self.block_size = block_size
         self.root = root
+        self.inception = inception
         self.model = model
 
     def read(self, iprot):
@@ -102,6 +110,11 @@ class FileSystem(object):
                 else:
                     iprot.skip(ftype)
             elif fid == 4:
+                if ftype == TType.I64:
+                    self.inception = iprot.readI64()
+                else:
+                    iprot.skip(ftype)
+            elif fid == 5:
                 if ftype == TType.I32:
                     self.model = iprot.readI32()
                 else:
@@ -128,8 +141,12 @@ class FileSystem(object):
             oprot.writeFieldBegin('root', TType.I64, 3)
             oprot.writeI64(self.root)
             oprot.writeFieldEnd()
+        if self.inception is not None:
+            oprot.writeFieldBegin('inception', TType.I64, 4)
+            oprot.writeI64(self.inception)
+            oprot.writeFieldEnd()
         if self.model is not None:
-            oprot.writeFieldBegin('model', TType.I32, 4)
+            oprot.writeFieldBegin('model', TType.I32, 5)
             oprot.writeI32(self.model)
             oprot.writeFieldEnd()
         oprot.writeFieldStop()
@@ -142,6 +159,8 @@ class FileSystem(object):
             raise TProtocolException(message='Required field block_size is unset!')
         if self.root is None:
             raise TProtocolException(message='Required field root is unset!')
+        if self.inception is None:
+            raise TProtocolException(message='Required field inception is unset!')
         return
 
     def __repr__(self):
@@ -337,14 +356,15 @@ class DirData(object):
             if ftype == TType.STOP:
                 break
             if fid == 1:
-                if ftype == TType.LIST:
-                    self.entries = []
-                    (_etype10, _size7) = iprot.readListBegin()
+                if ftype == TType.MAP:
+                    self.entries = {}
+                    (_ktype8, _vtype9, _size7) = iprot.readMapBegin()
                     for _i11 in range(_size7):
-                        _elem12 = DirEntry()
-                        _elem12.read(iprot)
-                        self.entries.append(_elem12)
-                    iprot.readListEnd()
+                        _key12 = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
+                        _val13 = DirEntry()
+                        _val13.read(iprot)
+                        self.entries[_key12] = _val13
+                    iprot.readMapEnd()
                 else:
                     iprot.skip(ftype)
             else:
@@ -358,16 +378,75 @@ class DirData(object):
             return
         oprot.writeStructBegin('DirData')
         if self.entries is not None:
-            oprot.writeFieldBegin('entries', TType.LIST, 1)
-            oprot.writeListBegin(TType.STRUCT, len(self.entries))
-            for iter13 in self.entries:
-                iter13.write(oprot)
-            oprot.writeListEnd()
+            oprot.writeFieldBegin('entries', TType.MAP, 1)
+            oprot.writeMapBegin(TType.STRING, TType.STRUCT, len(self.entries))
+            for kiter14, viter15 in self.entries.items():
+                oprot.writeString(kiter14.encode('utf-8') if sys.version_info[0] == 2 else kiter14)
+                viter15.write(oprot)
+            oprot.writeMapEnd()
             oprot.writeFieldEnd()
         oprot.writeFieldStop()
         oprot.writeStructEnd()
 
     def validate(self):
+        return
+
+    def __repr__(self):
+        L = ['%s=%r' % (key, value)
+             for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        return not (self == other)
+
+
+class SymLinkData(object):
+    """
+    Attributes:
+     - target
+    """
+
+
+    def __init__(self, target=None,):
+        self.target = target
+
+    def read(self, iprot):
+        if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
+            iprot._fast_decode(self, iprot, [self.__class__, self.thrift_spec])
+            return
+        iprot.readStructBegin()
+        while True:
+            (fname, ftype, fid) = iprot.readFieldBegin()
+            if ftype == TType.STOP:
+                break
+            if fid == 1:
+                if ftype == TType.STRING:
+                    self.target = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
+                else:
+                    iprot.skip(ftype)
+            else:
+                iprot.skip(ftype)
+            iprot.readFieldEnd()
+        iprot.readStructEnd()
+
+    def write(self, oprot):
+        if oprot._fast_encode is not None and self.thrift_spec is not None:
+            oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
+            return
+        oprot.writeStructBegin('SymLinkData')
+        if self.target is not None:
+            oprot.writeFieldBegin('target', TType.STRING, 1)
+            oprot.writeString(self.target.encode('utf-8') if sys.version_info[0] == 2 else self.target)
+            oprot.writeFieldEnd()
+        oprot.writeFieldStop()
+        oprot.writeStructEnd()
+
+    def validate(self):
+        if self.target is None:
+            raise TProtocolException(message='Required field target is unset!')
         return
 
     def __repr__(self):
@@ -392,10 +471,11 @@ class Inode(object):
      - flags
      - file_data
      - directory_data
+     - symlink_data
     """
 
 
-    def __init__(self, id=None, inumber=None, type=None, mtime=None, flags=0, file_data=None, directory_data=None,):
+    def __init__(self, id=None, inumber=None, type=None, mtime=None, flags=0, file_data=None, directory_data=None, symlink_data=None,):
         self.id = id
         self.inumber = inumber
         self.type = type
@@ -403,6 +483,7 @@ class Inode(object):
         self.flags = flags
         self.file_data = file_data
         self.directory_data = directory_data
+        self.symlink_data = symlink_data
 
     def read(self, iprot):
         if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
@@ -450,6 +531,12 @@ class Inode(object):
                     self.directory_data.read(iprot)
                 else:
                     iprot.skip(ftype)
+            elif fid == 8:
+                if ftype == TType.STRUCT:
+                    self.symlink_data = SymLinkData()
+                    self.symlink_data.read(iprot)
+                else:
+                    iprot.skip(ftype)
             else:
                 iprot.skip(ftype)
             iprot.readFieldEnd()
@@ -488,6 +575,10 @@ class Inode(object):
             oprot.writeFieldBegin('directory_data', TType.STRUCT, 7)
             self.directory_data.write(oprot)
             oprot.writeFieldEnd()
+        if self.symlink_data is not None:
+            oprot.writeFieldBegin('symlink_data', TType.STRUCT, 8)
+            self.symlink_data.write(oprot)
+            oprot.writeFieldEnd()
         oprot.writeFieldStop()
         oprot.writeStructEnd()
 
@@ -500,6 +591,8 @@ class Inode(object):
             raise TProtocolException(message='Required field type is unset!')
         if self.mtime is None:
             raise TProtocolException(message='Required field mtime is unset!')
+        if self.flags is None:
+            raise TProtocolException(message='Required field flags is unset!')
         return
 
     def __repr__(self):
@@ -518,7 +611,8 @@ FileSystem.thrift_spec = (
     (1, TType.STRING, 'name', 'UTF8', None, ),  # 1
     (2, TType.I32, 'block_size', None, None, ),  # 2
     (3, TType.I64, 'root', None, None, ),  # 3
-    (4, TType.I32, 'model', None, 1, ),  # 4
+    (4, TType.I64, 'inception', None, None, ),  # 4
+    (5, TType.I32, 'model', None, 1, ),  # 5
 )
 all_structs.append(FileData)
 FileData.thrift_spec = (
@@ -536,7 +630,12 @@ DirEntry.thrift_spec = (
 all_structs.append(DirData)
 DirData.thrift_spec = (
     None,  # 0
-    (1, TType.LIST, 'entries', (TType.STRUCT, [DirEntry, None], False), None, ),  # 1
+    (1, TType.MAP, 'entries', (TType.STRING, 'UTF8', TType.STRUCT, [DirEntry, None], False), None, ),  # 1
+)
+all_structs.append(SymLinkData)
+SymLinkData.thrift_spec = (
+    None,  # 0
+    (1, TType.STRING, 'target', 'UTF8', None, ),  # 1
 )
 all_structs.append(Inode)
 Inode.thrift_spec = (
@@ -548,6 +647,7 @@ Inode.thrift_spec = (
     (5, TType.I32, 'flags', None, 0, ),  # 5
     (6, TType.STRUCT, 'file_data', [FileData, None], None, ),  # 6
     (7, TType.STRUCT, 'directory_data', [DirData, None], None, ),  # 7
+    (8, TType.STRUCT, 'symlink_data', [SymLinkData, None], None, ),  # 8
 )
 fix_spec(all_structs)
 del all_structs
