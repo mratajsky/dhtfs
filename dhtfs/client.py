@@ -70,7 +70,7 @@ class Client:
                 # Return the value as soon as we find it
                 return getattr(client, method)(kd, *args)
             except StorageException as e:
-                logging.info(f'Get(): {e.error_code} -> {e.error_message}')
+                logging.info(f'{method}: {e.error_code} -> {e.error_message}')
                 if e.error_code != 404:
                     raise e
 

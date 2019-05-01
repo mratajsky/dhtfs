@@ -90,8 +90,10 @@ class DHT:
         if op == 'FindClosestPeers':
             # params is the DHT key
             key_node = Node(params)
-            nearest = self._node.protocol.router.find_neighbors(
-                key_node, self._node.alpha)
+            # List of nearest peers initially contains our own peer, this makes
+            # sure our peer is considered for the result even if there are no
+            # other peers
+            nearest = [Node(self._node.node.id, self.host, self.port)]
             crawler = NodeSpiderCrawl(
                 self._node.protocol,
                 key_node,
