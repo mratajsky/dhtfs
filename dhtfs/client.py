@@ -126,6 +126,8 @@ class Client:
         if value is not None:
             return value
         if bucket is not None:
+            if not isinstance(bucket.values, list):
+                raise ValueError('Value is not a valid bucket (wrong model?)')
             for bucket_value in bucket.values:
                 # Unserialize the BucketValues as well
                 bucket_value.value = thrift_unserialize(bucket_value.value, Inode())
