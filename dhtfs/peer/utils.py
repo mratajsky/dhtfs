@@ -9,18 +9,19 @@ from kademlia.utils import digest
 
 __all__ = ['defaults',
            'get_default_database_path',
-           'get_random_port',
            'parse_node_id',
            'setup_database']
 
 DEFAULT_HOST = '0.0.0.0'
+DEFAULT_PORT = 9090
 DEFAULT_ALPHA = 2
 DEFAULT_KSIZE = 5
 
 DATABASE_DIR_MODE = 0o755
 
-Defaults = namedtuple('Defaults', ['host', 'alpha', 'ksize'])
+Defaults = namedtuple('Defaults', ['host', 'port', 'alpha', 'ksize'])
 defaults = Defaults(host=DEFAULT_HOST,
+                    port=DEFAULT_PORT,
                     alpha=DEFAULT_ALPHA,
                     ksize=DEFAULT_KSIZE)
 
@@ -34,11 +35,6 @@ def get_default_database_path(port):
 def get_random_node_id():
     # Taken from kademlia.network.Server
     return digest(random.getrandbits(255))
-
-
-def get_random_port():
-    '''Pick a random port from a reasonable range.'''
-    return random.randint(10000, 65000)
 
 
 def parse_node_id(node_id):
