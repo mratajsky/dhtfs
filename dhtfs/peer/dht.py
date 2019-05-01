@@ -89,13 +89,18 @@ class DHT:
     async def _process_rpc(self, op, ident, params):
         if op == 'FindClosestPeers':
             # params is the DHT key
+            key_node = Node(params)
             nearest = self._node.protocol.router.find_neighbors(
-                Node(params), self._node.alpha)
+                key_node, self._node.alpha)
             crawler = NodeSpiderCrawl(
                 self._node.protocol,
-                self._node.node,
+                key_node,
                 nearest,
                 self._node.ksize,
                 self._node.alpha)
             nodes = await crawler.find()
+            if logger.isEnabledFor(logging.DEBUG):
+                import pprint
+                logger.debug('Found nodes:\n' +
+                             pprint.pformat(nodes, indent=4, width=50))
             self._rpc_pipe.send((ident, nodes))
