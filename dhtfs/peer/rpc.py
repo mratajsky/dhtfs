@@ -94,6 +94,8 @@ class Handler:
         bucket = self._db.get(key)
         if bucket is not None:
             bucket = thrift_unserialize(bucket, Bucket())
+            if not isinstance(bucket.values, list):
+                raise StorageException(405, 'Key contains non-bucket value')
         if bucket is None or len(bucket.values) == 0:
             raise StorageException(404, 'Bucket is empty')
         return bucket
