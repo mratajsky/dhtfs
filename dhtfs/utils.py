@@ -51,3 +51,13 @@ def thrift_unserialize(value, obj):
 
     obj.read(protocol)
     return obj
+
+
+def naming_func(label):
+    '''Return the DHT key of the label'''
+    last = label[-1]
+    for i in range(len(label)-1,-1,-1):
+        if(last != label[i]):
+            break
+    
+    return label[:i+1]
