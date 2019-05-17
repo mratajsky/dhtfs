@@ -249,6 +249,77 @@ class Bucket(object):
         return not (self == other)
 
 
+class BucketKeys(object):
+    """
+    Attributes:
+     - search_key_min
+     - search_key_max
+    """
+
+
+    def __init__(self, search_key_min=None, search_key_max=None,):
+        self.search_key_min = search_key_min
+        self.search_key_max = search_key_max
+
+    def read(self, iprot):
+        if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
+            iprot._fast_decode(self, iprot, [self.__class__, self.thrift_spec])
+            return
+        iprot.readStructBegin()
+        while True:
+            (fname, ftype, fid) = iprot.readFieldBegin()
+            if ftype == TType.STOP:
+                break
+            if fid == 1:
+                if ftype == TType.I64:
+                    self.search_key_min = iprot.readI64()
+                else:
+                    iprot.skip(ftype)
+            elif fid == 2:
+                if ftype == TType.I64:
+                    self.search_key_max = iprot.readI64()
+                else:
+                    iprot.skip(ftype)
+            else:
+                iprot.skip(ftype)
+            iprot.readFieldEnd()
+        iprot.readStructEnd()
+
+    def write(self, oprot):
+        if oprot._fast_encode is not None and self.thrift_spec is not None:
+            oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
+            return
+        oprot.writeStructBegin('BucketKeys')
+        if self.search_key_min is not None:
+            oprot.writeFieldBegin('search_key_min', TType.I64, 1)
+            oprot.writeI64(self.search_key_min)
+            oprot.writeFieldEnd()
+        if self.search_key_max is not None:
+            oprot.writeFieldBegin('search_key_max', TType.I64, 2)
+            oprot.writeI64(self.search_key_max)
+            oprot.writeFieldEnd()
+        oprot.writeFieldStop()
+        oprot.writeStructEnd()
+
+    def validate(self):
+        if self.search_key_min is None:
+            raise TProtocolException(message='Required field search_key_min is unset!')
+        if self.search_key_max is None:
+            raise TProtocolException(message='Required field search_key_max is unset!')
+        return
+
+    def __repr__(self):
+        L = ['%s=%r' % (key, value)
+             for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        return not (self == other)
+
+
 class StorageException(TException):
     """
     Attributes:
@@ -339,6 +410,12 @@ Bucket.thrift_spec = (
     (1, TType.I64, 'search_key_min', None, None, ),  # 1
     (2, TType.I64, 'search_key_max', None, None, ),  # 2
     (3, TType.LIST, 'values', (TType.STRUCT, [BucketValue, None], False), None, ),  # 3
+)
+all_structs.append(BucketKeys)
+BucketKeys.thrift_spec = (
+    None,  # 0
+    (1, TType.I64, 'search_key_min', None, None, ),  # 1
+    (2, TType.I64, 'search_key_max', None, None, ),  # 2
 )
 all_structs.append(StorageException)
 StorageException.thrift_spec = (
