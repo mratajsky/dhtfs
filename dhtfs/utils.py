@@ -5,8 +5,9 @@ from decimal import Decimal
 from thrift.transport import TTransport
 from thrift.protocol import TBinaryProtocol
 
-#TO-DO,   max depth of tree variable
-TREE_DEPTH = 30
+#TO-DO,   max depth of tree variable, search window
+DEFAULT_TREE_DEPTH = 32
+DEFAULT_SEARCH_KEY_MAX = 864000 #seconds granularity, 10 days period
 
 __all__ = ['defaults',
            'setup_logging']
@@ -16,6 +17,7 @@ DEFAULT_PORT = 9090
 DEFAULT_NAME = 'default'
 DEFAULT_BLOCK_SIZE = 65536
 DEFAULT_MODEL = 0
+
 
 Defaults = namedtuple(
     'Defaults', ['host', 'port', 'name', 'block_size', 'model'])
@@ -56,6 +58,12 @@ def thrift_unserialize(value, obj):
     obj.read(protocol)
     return obj
 
+def next_naming_func(prefix, label):
+    '''Locates the first bit in suffix that is diffrent from the last of prefix'''
+    for i in range(len(prefix), len(label)):
+        if(label[i] != prefix[-1]):
+            return label[:i+1]
+    return label
 
 def naming_func(label):
     '''Return the DHT key of the label'''
@@ -68,7 +76,7 @@ def naming_func(label):
 
 
 
-def float_to_bin_no_dot(f, digits=10):
+def float_to_bin_no_dot(f, digits=DEFAULT_TREE_DEPTH):
     '''convert float to bin without decimal point(1.5 -> 1.1-> 11), f in [0]'''
     f = Decimal(f)
     f = f'{f:f}'
@@ -82,9 +90,11 @@ def float_to_bin_no_dot(f, digits=10):
         result = result + intTmp
         decimalPart = '0.' + decimalPart
 
-    return result
+    return '#' + result
 
-
+def search_key_to_interval(search_key, range_max=DEFAULT_SEARCH_KEY_MAX):
+    '''maps search key(time stamp) to the timing interval, returns between [0,1]'''
+    return (search_key*1.0/range_max)
 
 def get_label(range_min,range_max,total_len): 
     '''get label of bucket'''

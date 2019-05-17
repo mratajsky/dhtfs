@@ -50,6 +50,9 @@ service Rpc {
 	list<BucketValue> GetRange(1: binary key, 2: i64 search_key_min,
 		3: i64 search_key_max),
 
+	binary FindKey(1: string ident, 2: i64 search_key)
+		throws (1: StorageException err)
+
 	BucketKeys GetBucketKeys(1: binary key)
 		throws (1: StorageException err)
 }

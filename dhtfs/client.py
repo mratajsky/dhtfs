@@ -11,7 +11,7 @@ from thrift.protocol import TBinaryProtocol
 from .thrift.metadata.ttypes import FileSystem, FileSystemModel, Inode, InodeType, DirData
 from .thrift.rpc import Rpc
 from .thrift.rpc.ttypes import Bucket, BucketValue, Peer, StorageException
-from .utils import thrift_serialize, thrift_unserialize
+from .utils import *
 
 logger = logging.getLogger(__name__)
 
@@ -109,7 +109,7 @@ class Client:
             self.put_inode(fs_name, inumber, value)
         else:
             # TODO: min-max should be 0-chosen period
-            self.add_inode(fs_name, inumber, value, 0, 0, 0)
+            self.add_inode(fs_name, inumber, value, 0, 0, DEFAULT_SEARCH_KEY_MAX)
 
         # Store the description
         value = FileSystem(
@@ -185,6 +185,11 @@ class Client:
         logging.debug(f'Add: {self._host}:{self._port}')
         self._client.Add(kd, bucket_value, search_key_min, search_key_max)
 
+    def FindKey(self, ident, search_key):
+        assert self._connected
+        logging.debug(f'FindKey: {self._host}:{self._port}')
+        return self._client.FindKey(ident, search_key)
+
     def Get(self, kd):
         assert self._connected
         logging.debug(f'Get: {self._host}:{self._port}')
@@ -204,6 +209,11 @@ class Client:
         assert self._connected
         logging.debug(f'GetRange: {self._host}:{self._port}')
         return self._client.GetRange(kd, min_key, max_key)
+
+    def GetBucketKeys(self, kd):
+        assert self._connected
+        logging.debug(f'GetBucketKeys: {self._host}:{self._port}')
+        return self._client.GetBucketKeys(kd)
 
     def Put(self, kd, bin_value):
         assert self._connected

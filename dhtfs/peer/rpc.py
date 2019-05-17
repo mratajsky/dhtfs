@@ -5,14 +5,17 @@ import queue
 import threading
 from contextlib import contextmanager
 
+from kademlia.utils import digest
+
 from thrift.transport import TSocket
 from thrift.transport import TTransport
 from thrift.protocol import TBinaryProtocol
 from thrift.server import TServer
 
 from ..thrift.rpc.Rpc import Processor
-from ..thrift.rpc.ttypes import Peer, Bucket, BucketValue, StorageException
-from ..utils import thrift_serialize, thrift_unserialize
+from ..thrift.rpc.ttypes import Peer, Bucket, BucketValue, BucketKeys, StorageException
+from ..client import Client
+from ..utils import *
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +31,16 @@ class Handler:
 
     def FindClosestPeers(self, key):
         logger.debug(f"RPC: FindClosestPeers({key.hex()})")
+        return self._find_closest_peers(key)
+
+    def FindKey(self, ident, search_key):
+        logger.debug(f"RPC: FindKey({ident}, {search_key})")
+        key = self._lookup(ident, search_key)
+        logger.debug(f'Key: {key}')
+        return digest(key)
+
+
+    def _find_closest_peers(self, key):
         ident = threading.get_ident()
         # Ask the DHT process to do the lookup and use the thread identifier to
         # find the result when it's sent back
@@ -36,6 +49,53 @@ class Handler:
 
         # The nodes returned are instances of kademlia.node.Node
         return [Peer(n.ip, n.port) for n in result]
+
+    def _find_search_keys(self, key):
+        closest = self._find_closest_peers(dht_key)
+        for peer in closest:
+            client = Client(peer.host, peer.port)
+            client.connect()
+            try:
+                bucket_keys = client.GetBucketKeys(digest(key))
+                return bucket_keys.search_key_min, bucket_keys.search_key_max
+            except StorageException:
+                pass
+
+    def _lookup(self, ident, search_key):
+        lower_bound = 2
+        upper_bound = DEFAULT_TREE_DEPTH + 1
+        label = float_to_bin_no_dot(search_key_to_interval(search_key))
+
+        while( upper_bound >= lower_bound):
+            mid_point = (lower_bound + upper_bound) / 2
+            prefix = label[0:mid_point]
+            dht_key = naming_func(f'{ident}:{prefix}')
+
+            search_key_min, search_key_max = self._find_search_keys(dht_key)
+            if search_key_min is None:
+               upper_bound = len(dht_key)
+            else:
+                if(search_key >= search_key_min and search_key <= search_key_max):
+                    return dht_key
+                lower_bound = len(next_naming_func(prefix, label))
+
+        return naming_func(f'{ident}:#')
+
+        # bucket = self.get_iterative(dht_key)
+        # if bucket is not None:
+        #     bucket = thrift_unserialize(bucket, Bucket())
+        #     if(search_key >= bucket.search_key_min and search_key <= bucket.search_key_max):
+        #         return dht_key
+        #     else:
+        #         lower_bound = len(next_naming_func(prefix, label))
+        # else:
+        #    upper_bound = len(dht_key)
+
+
+    def GetBucketKeys(self, key):
+        logger.debug(f"RPC: GetBucketKeys({key.hex()})")
+        bucket = self._get_nonempty_bucket(key)
+        return BucketKeys(bucket.search_key_min, bucket.search_key_max)
 
     def Put(self, key, value):
         logger.debug(f"RPC: Put({key.hex()}, ...)")

@@ -28,8 +28,7 @@ def parse_args():
                        help='enable verbose output (use up to twice)')
     group.set_defaults(host=defaults.host, port=defaults.port)
 
-    commands = parser.add_subparsers(title='commands', dest='command',
-                                     required=True)
+    commands = parser.add_subparsers(title='commands', dest='command')
 
     # Create command
     cparser = commands.add_parser('create')
@@ -95,6 +94,9 @@ def parse_args():
                          help=f'file system name (default: {defaults.name})')
     cparser.set_defaults(name=defaults.name,
                          command='dht-get', get='inode-range')
+
+    # Indexing test
+    cparser = commands.add_parser('index')
 
     return parser.parse_args()
 
@@ -163,6 +165,12 @@ def mount(args):
     os.execve(executable, fuse_args, env)
 
 
+def index(args):
+    client = create_client(args.host, args.port)
+    
+    print("say howdy")
+
+
 def run():
     args = parse_args()
     setup_logging(args.verbose)
@@ -200,6 +208,8 @@ def run():
             print(value)
         else:
             print('Value not found')
+    elif args.command == 'index':
+        index(args)
 
 
 if __name__ == '__main__':
