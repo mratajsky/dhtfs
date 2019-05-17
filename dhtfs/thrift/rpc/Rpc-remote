@@ -26,7 +26,7 @@ if len(sys.argv) <= 1 or sys.argv[1] == '--help':
     print('Functions:')
     print('   FindClosestPeers(string key)')
     print('  void Put(string key, string value)')
-    print('  void Add(string key, BucketValue value, i64 search_key_min, i64 search_key_max)')
+    print('  void Add(string key, BucketValue value, string name, i64 search_key_min, i64 search_key_max)')
     print('  string Get(string key)')
     print('  BucketValue GetLatest(string key)')
     print('  BucketValue GetLatestMax(string key, i64 search_key_max)')
@@ -125,10 +125,10 @@ elif cmd == 'Put':
     pp.pprint(client.Put(args[0], args[1],))
 
 elif cmd == 'Add':
-    if len(args) != 4:
-        print('Add requires 4 args')
+    if len(args) != 5:
+        print('Add requires 5 args')
         sys.exit(1)
-    pp.pprint(client.Add(args[0], eval(args[1]), eval(args[2]), eval(args[3]),))
+    pp.pprint(client.Add(args[0], eval(args[1]), args[2], eval(args[3]), eval(args[4]),))
 
 elif cmd == 'Get':
     if len(args) != 1:

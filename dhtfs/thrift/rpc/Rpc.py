@@ -34,11 +34,12 @@ class Iface(object):
         """
         pass
 
-    def Add(self, key, value, search_key_min, search_key_max):
+    def Add(self, key, value, name, search_key_min, search_key_max):
         """
         Parameters:
          - key
          - value
+         - name
          - search_key_min
          - search_key_max
         """
@@ -160,22 +161,24 @@ class Client(Iface):
         iprot.readMessageEnd()
         return
 
-    def Add(self, key, value, search_key_min, search_key_max):
+    def Add(self, key, value, name, search_key_min, search_key_max):
         """
         Parameters:
          - key
          - value
+         - name
          - search_key_min
          - search_key_max
         """
-        self.send_Add(key, value, search_key_min, search_key_max)
+        self.send_Add(key, value, name, search_key_min, search_key_max)
         self.recv_Add()
 
-    def send_Add(self, key, value, search_key_min, search_key_max):
+    def send_Add(self, key, value, name, search_key_min, search_key_max):
         self._oprot.writeMessageBegin('Add', TMessageType.CALL, self._seqid)
         args = Add_args()
         args.key = key
         args.value = value
+        args.name = name
         args.search_key_min = search_key_min
         args.search_key_max = search_key_max
         args.write(self._oprot)
@@ -483,7 +486,7 @@ class Processor(Iface, TProcessor):
         iprot.readMessageEnd()
         result = Add_result()
         try:
-            self._handler.Add(args.key, args.value, args.search_key_min, args.search_key_max)
+            self._handler.Add(args.key, args.value, args.name, args.search_key_min, args.search_key_max)
             msg_type = TMessageType.REPLY
         except TTransport.TTransportException:
             raise
@@ -910,14 +913,16 @@ class Add_args(object):
     Attributes:
      - key
      - value
+     - name
      - search_key_min
      - search_key_max
     """
 
 
-    def __init__(self, key=None, value=None, search_key_min=None, search_key_max=None,):
+    def __init__(self, key=None, value=None, name=None, search_key_min=None, search_key_max=None,):
         self.key = key
         self.value = value
+        self.name = name
         self.search_key_min = search_key_min
         self.search_key_max = search_key_max
 
@@ -942,11 +947,16 @@ class Add_args(object):
                 else:
                     iprot.skip(ftype)
             elif fid == 3:
+                if ftype == TType.STRING:
+                    self.name = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
+                else:
+                    iprot.skip(ftype)
+            elif fid == 4:
                 if ftype == TType.I64:
                     self.search_key_min = iprot.readI64()
                 else:
                     iprot.skip(ftype)
-            elif fid == 4:
+            elif fid == 5:
                 if ftype == TType.I64:
                     self.search_key_max = iprot.readI64()
                 else:
@@ -969,12 +979,16 @@ class Add_args(object):
             oprot.writeFieldBegin('value', TType.STRUCT, 2)
             self.value.write(oprot)
             oprot.writeFieldEnd()
+        if self.name is not None:
+            oprot.writeFieldBegin('name', TType.STRING, 3)
+            oprot.writeString(self.name.encode('utf-8') if sys.version_info[0] == 2 else self.name)
+            oprot.writeFieldEnd()
         if self.search_key_min is not None:
-            oprot.writeFieldBegin('search_key_min', TType.I64, 3)
+            oprot.writeFieldBegin('search_key_min', TType.I64, 4)
             oprot.writeI64(self.search_key_min)
             oprot.writeFieldEnd()
         if self.search_key_max is not None:
-            oprot.writeFieldBegin('search_key_max', TType.I64, 4)
+            oprot.writeFieldBegin('search_key_max', TType.I64, 5)
             oprot.writeI64(self.search_key_max)
             oprot.writeFieldEnd()
         oprot.writeFieldStop()
@@ -998,8 +1012,9 @@ Add_args.thrift_spec = (
     None,  # 0
     (1, TType.STRING, 'key', 'BINARY', None, ),  # 1
     (2, TType.STRUCT, 'value', [BucketValue, None], None, ),  # 2
-    (3, TType.I64, 'search_key_min', None, None, ),  # 3
-    (4, TType.I64, 'search_key_max', None, None, ),  # 4
+    (3, TType.STRING, 'name', 'UTF8', None, ),  # 3
+    (4, TType.I64, 'search_key_min', None, None, ),  # 4
+    (5, TType.I64, 'search_key_max', None, None, ),  # 5
 )
 
 
