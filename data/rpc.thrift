@@ -16,6 +16,11 @@ struct Bucket {
 	3: list<BucketValue> values
 }
 
+struct BucketKeys {
+	1: required i64 search_key_min,
+	2: required i64 search_key_max
+}
+
 exception StorageException {
 	1: required i32 error_code,
 	2: required string error_message
@@ -43,5 +48,8 @@ service Rpc {
 
 	// Get values from a leaf bucket in the inclusive search range
 	list<BucketValue> GetRange(1: binary key, 2: i64 search_key_min,
-		3: i64 search_key_max)
+		3: i64 search_key_max),
+
+	BucketKeys GetBucketKeys(1: binary key)
+		throws (1: StorageException err)
 }
