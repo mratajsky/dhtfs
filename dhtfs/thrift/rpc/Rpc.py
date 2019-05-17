@@ -75,6 +75,14 @@ class Iface(object):
         """
         pass
 
+    def FindKey(self, ident, search_key):
+        """
+        Parameters:
+         - ident
+         - search_key
+        """
+        pass
+
     def GetBucketKeys(self, key):
         """
         Parameters:
@@ -325,6 +333,41 @@ class Client(Iface):
             return result.success
         raise TApplicationException(TApplicationException.MISSING_RESULT, "GetRange failed: unknown result")
 
+    def FindKey(self, ident, search_key):
+        """
+        Parameters:
+         - ident
+         - search_key
+        """
+        self.send_FindKey(ident, search_key)
+        return self.recv_FindKey()
+
+    def send_FindKey(self, ident, search_key):
+        self._oprot.writeMessageBegin('FindKey', TMessageType.CALL, self._seqid)
+        args = FindKey_args()
+        args.ident = ident
+        args.search_key = search_key
+        args.write(self._oprot)
+        self._oprot.writeMessageEnd()
+        self._oprot.trans.flush()
+
+    def recv_FindKey(self):
+        iprot = self._iprot
+        (fname, mtype, rseqid) = iprot.readMessageBegin()
+        if mtype == TMessageType.EXCEPTION:
+            x = TApplicationException()
+            x.read(iprot)
+            iprot.readMessageEnd()
+            raise x
+        result = FindKey_result()
+        result.read(iprot)
+        iprot.readMessageEnd()
+        if result.success is not None:
+            return result.success
+        if result.err is not None:
+            raise result.err
+        raise TApplicationException(TApplicationException.MISSING_RESULT, "FindKey failed: unknown result")
+
     def GetBucketKeys(self, key):
         """
         Parameters:
@@ -370,6 +413,7 @@ class Processor(Iface, TProcessor):
         self._processMap["GetLatest"] = Processor.process_GetLatest
         self._processMap["GetLatestMax"] = Processor.process_GetLatestMax
         self._processMap["GetRange"] = Processor.process_GetRange
+        self._processMap["FindKey"] = Processor.process_FindKey
         self._processMap["GetBucketKeys"] = Processor.process_GetBucketKeys
 
     def process(self, iprot, oprot):
@@ -556,6 +600,32 @@ class Processor(Iface, TProcessor):
             msg_type = TMessageType.EXCEPTION
             result = TApplicationException(TApplicationException.INTERNAL_ERROR, 'Internal error')
         oprot.writeMessageBegin("GetRange", msg_type, seqid)
+        result.write(oprot)
+        oprot.writeMessageEnd()
+        oprot.trans.flush()
+
+    def process_FindKey(self, seqid, iprot, oprot):
+        args = FindKey_args()
+        args.read(iprot)
+        iprot.readMessageEnd()
+        result = FindKey_result()
+        try:
+            result.success = self._handler.FindKey(args.ident, args.search_key)
+            msg_type = TMessageType.REPLY
+        except TTransport.TTransportException:
+            raise
+        except StorageException as err:
+            msg_type = TMessageType.REPLY
+            result.err = err
+        except TApplicationException as ex:
+            logging.exception('TApplication exception in handler')
+            msg_type = TMessageType.EXCEPTION
+            result = ex
+        except Exception:
+            logging.exception('Unexpected exception in handler')
+            msg_type = TMessageType.EXCEPTION
+            result = TApplicationException(TApplicationException.INTERNAL_ERROR, 'Internal error')
+        oprot.writeMessageBegin("FindKey", msg_type, seqid)
         result.write(oprot)
         oprot.writeMessageEnd()
         oprot.trans.flush()
@@ -1562,6 +1632,152 @@ class GetRange_result(object):
 all_structs.append(GetRange_result)
 GetRange_result.thrift_spec = (
     (0, TType.LIST, 'success', (TType.STRUCT, [BucketValue, None], False), None, ),  # 0
+)
+
+
+class FindKey_args(object):
+    """
+    Attributes:
+     - ident
+     - search_key
+    """
+
+
+    def __init__(self, ident=None, search_key=None,):
+        self.ident = ident
+        self.search_key = search_key
+
+    def read(self, iprot):
+        if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
+            iprot._fast_decode(self, iprot, [self.__class__, self.thrift_spec])
+            return
+        iprot.readStructBegin()
+        while True:
+            (fname, ftype, fid) = iprot.readFieldBegin()
+            if ftype == TType.STOP:
+                break
+            if fid == 1:
+                if ftype == TType.STRING:
+                    self.ident = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
+                else:
+                    iprot.skip(ftype)
+            elif fid == 2:
+                if ftype == TType.I64:
+                    self.search_key = iprot.readI64()
+                else:
+                    iprot.skip(ftype)
+            else:
+                iprot.skip(ftype)
+            iprot.readFieldEnd()
+        iprot.readStructEnd()
+
+    def write(self, oprot):
+        if oprot._fast_encode is not None and self.thrift_spec is not None:
+            oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
+            return
+        oprot.writeStructBegin('FindKey_args')
+        if self.ident is not None:
+            oprot.writeFieldBegin('ident', TType.STRING, 1)
+            oprot.writeString(self.ident.encode('utf-8') if sys.version_info[0] == 2 else self.ident)
+            oprot.writeFieldEnd()
+        if self.search_key is not None:
+            oprot.writeFieldBegin('search_key', TType.I64, 2)
+            oprot.writeI64(self.search_key)
+            oprot.writeFieldEnd()
+        oprot.writeFieldStop()
+        oprot.writeStructEnd()
+
+    def validate(self):
+        return
+
+    def __repr__(self):
+        L = ['%s=%r' % (key, value)
+             for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        return not (self == other)
+all_structs.append(FindKey_args)
+FindKey_args.thrift_spec = (
+    None,  # 0
+    (1, TType.STRING, 'ident', 'UTF8', None, ),  # 1
+    (2, TType.I64, 'search_key', None, None, ),  # 2
+)
+
+
+class FindKey_result(object):
+    """
+    Attributes:
+     - success
+     - err
+    """
+
+
+    def __init__(self, success=None, err=None,):
+        self.success = success
+        self.err = err
+
+    def read(self, iprot):
+        if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
+            iprot._fast_decode(self, iprot, [self.__class__, self.thrift_spec])
+            return
+        iprot.readStructBegin()
+        while True:
+            (fname, ftype, fid) = iprot.readFieldBegin()
+            if ftype == TType.STOP:
+                break
+            if fid == 0:
+                if ftype == TType.STRING:
+                    self.success = iprot.readBinary()
+                else:
+                    iprot.skip(ftype)
+            elif fid == 1:
+                if ftype == TType.STRUCT:
+                    self.err = StorageException()
+                    self.err.read(iprot)
+                else:
+                    iprot.skip(ftype)
+            else:
+                iprot.skip(ftype)
+            iprot.readFieldEnd()
+        iprot.readStructEnd()
+
+    def write(self, oprot):
+        if oprot._fast_encode is not None and self.thrift_spec is not None:
+            oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
+            return
+        oprot.writeStructBegin('FindKey_result')
+        if self.success is not None:
+            oprot.writeFieldBegin('success', TType.STRING, 0)
+            oprot.writeBinary(self.success)
+            oprot.writeFieldEnd()
+        if self.err is not None:
+            oprot.writeFieldBegin('err', TType.STRUCT, 1)
+            self.err.write(oprot)
+            oprot.writeFieldEnd()
+        oprot.writeFieldStop()
+        oprot.writeStructEnd()
+
+    def validate(self):
+        return
+
+    def __repr__(self):
+        L = ['%s=%r' % (key, value)
+             for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        return not (self == other)
+all_structs.append(FindKey_result)
+FindKey_result.thrift_spec = (
+    (0, TType.STRING, 'success', 'BINARY', None, ),  # 0
+    (1, TType.STRUCT, 'err', [StorageException, None], None, ),  # 1
 )
 
 
