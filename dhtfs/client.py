@@ -6,7 +6,7 @@ from kademlia.utils import digest
 
 from thrift.transport import TSocket
 from thrift.transport import TTransport
-from thrift.protocol import TBinaryProtocol
+from thrift.protocol import TBinaryProtocol, TCompactProtocol
 
 from .thrift.metadata.ttypes import FileSystem, FileSystemModel, Inode, InodeType, DirData
 from .thrift.rpc import Rpc
@@ -22,9 +22,9 @@ class Client:
         self._port = port
         socket = TSocket.TSocket(host, port)
         # Buffering is critical. Raw sockets are very slow
-        self._transport = TTransport.TBufferedTransport(socket)
+        self._transport = TTransport.TFramedTransport(socket)
         # Wrap in a protocol
-        protocol = TBinaryProtocol.TBinaryProtocolAccelerated(self._transport)
+        protocol = TCompactProtocol.TCompactProtocolAccelerated(self._transport)
         # Create a client to use the protocol encoder
         self._client = Rpc.Client(protocol)
         self._connected = False
@@ -38,22 +38,23 @@ class Client:
         self._connected = True
 
     # Iterative methods
-    def add_iterative(self, key, bucket_value, search_key_min, search_key_max):
+    def add_iterative(self, key, bucket_value, name, search_key_min, search_key_max):
         assert self._connected
         kd = digest(key)
         logging.info(f'Storing {key} -> {kd.hex()}')
         return self.add_iterative_digest(kd, bucket_value,
+                                         name,
                                          search_key_min,
                                          search_key_max)
 
-    def add_iterative_digest(self, kd, bucket_value, search_key_min, search_key_max):
+    def add_iterative_digest(self, kd, bucket_value, name, search_key_min, search_key_max):
         assert self._connected
         peers = self._client.FindClosestPeers(kd)
         for peer in peers:
             client = Client(peer.host, peer.port)
             client.connect()
             # Store the value at every peer
-            client.Add(kd, bucket_value, search_key_min, search_key_max)
+            client.Add(kd, bucket_value, name, search_key_min, search_key_max)
 
     def get_iterative(self, key, method='Get', *args):
         assert self._connected
@@ -180,10 +181,10 @@ class Client:
         self.put_iterative(f'I:{fs_name}:{inumber}', thrift_serialize(inode))
 
     # Wrapper methods
-    def Add(self, kd, bucket_value, search_key_min, search_key_max):
+    def Add(self, kd, bucket_value, name, search_key_min, search_key_max):
         assert self._connected
         logging.debug(f'Add: {self._host}:{self._port}')
-        self._client.Add(kd, bucket_value, search_key_min, search_key_max)
+        self._client.Add(kd, bucket_value, name, search_key_min, search_key_max)
 
     def FindKey(self, ident, search_key):
         assert self._connected
@@ -205,10 +206,10 @@ class Client:
         logging.debug(f'GetLatestMax: {self._host}:{self._port}')
         return self._client.GetLatestMax(kd, max_key)
 
-    def GetRange(self, kd, min_key, max_key):
+    def GetRange(self, name, min_key, max_key):
         assert self._connected
         logging.debug(f'GetRange: {self._host}:{self._port}')
-        return self._client.GetRange(kd, min_key, max_key)
+        return self._client.GetRange(name, min_key, max_key)
 
     def GetBucketKeys(self, kd):
         assert self._connected
@@ -219,3 +220,4 @@ class Client:
         assert self._connected
         logging.debug(f'Put: {self._host}:{self._port}')
         self._client.Put(kd, bin_value)
+    
