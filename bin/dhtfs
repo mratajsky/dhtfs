@@ -13,6 +13,7 @@ from kademlia.utils import digest
 from dhtfs.utils import *
 from dhtfs.client import Client
 from dhtfs.thrift.metadata.ttypes import FileSystem, Inode
+from dhtfs.thrift.rpc.ttypes import Bucket
 
 
 def parse_args():
@@ -203,6 +204,10 @@ def run():
                 logging.info(f'DHT key: {args.key} -> {kd.hex()}')
 
             value = get_value_digest(args.host, args.port, kd)
+            try:
+                value = thrift_unserialize(value, Bucket())
+            except:
+                print("not a bucket") 
 
         if value is not None:
             print(value)
