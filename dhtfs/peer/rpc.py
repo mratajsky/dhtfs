@@ -110,37 +110,49 @@ class Handler:
   
         dht_key = digest(f'{name}:{label}')
         peers = self._find_closest_peers(dht_key)
-        indx = random.randint(0,len(peers)-1)
+        print(f'LOOKUP {name}:{label} -> {peers}')
+  
+        # print(f'============== LEN: {len(peers)}')
+        indx =random.randint(0,len(peers)-1)
+        # indx = 0  #random.randint(0,len(peers)-1)
+        # print(f'====INDX {indx}')
+        # print(f'====RAND {random.randint(0,len(peers)-1)}')
         client = Client(peers[indx].host, peers[indx].port)
 
         if label[-1] == '0':
             if len(bucketLeft.values) > DEFAULT_BUCKET_SIZE:
                 client.connect()
+                print(f'======= putting {bucketRight.search_key_min} {bucketRight.search_key_max} on {peers[indx].port}')
                 client.Put(dht_key, thrift_serialize(bucketRight))
                 client.disconnect()
                 return self.bucketSplitter(bucketLeft, name)
             if len(bucketRight.values) > DEFAULT_BUCKET_SIZE:
                 buck = thrift_serialize(self.bucketSplitter(bucketRight,name))
                 client.connect()
+                print(f'======= putting {bucketRight.search_key_min} {bucketRight.search_key_max} on {peers[indx].port}')
                 client.Put(dht_key, buck)
                 return bucketLeft
 
             client.connect()
+            print(f'======= putting {bucketRight.search_key_min} {bucketRight.search_key_max} on {peers[indx].port}')
             client.Put(dht_key, thrift_serialize(bucketRight))
 
             return bucketLeft
         else:
             if len(bucketRight.values) > DEFAULT_BUCKET_SIZE:
                 client.connect()
+                print(f'======= putting {bucketLeft.search_key_min} {bucketLeft.search_key_max} on {peers[indx].port}')
                 client.Put(dht_key, thrift_serialize(bucketLeft))
                 client.disconnect()
                 return self.bucketSplitter(bucketRight,name)
             if len(bucketLeft.values) > DEFAULT_BUCKET_SIZE:
                 buck = thrift_serialize(self.bucketSplitter(bucketLeft,name))
                 client.connect()
+                print(f'======= putting {bucketLeft.search_key_min} {bucketLeft.search_key_max} on {peers[indx].port}')
                 client.Put(dht_key, buck)
                 return bucketRight
             client.connect()
+            print(f'======= putting {bucketLeft.search_key_min} {bucketLeft.search_key_max} on {peers[indx].port}')
             client.Put(dht_key, thrift_serialize(bucketLeft))
             return bucketRight
 
@@ -163,14 +175,16 @@ class Handler:
                 # TODO: fix splitting full atomic buckets
                 if (bucket.search_key_min + 1) >= bucket.search_key_max:
                     return
+                print(f'Storing {value.search_key}/{name} in {bucket.search_key_min} {bucket.search_key_max}')
                  # TODO: this is not total ordering
                 self.insort_right(bucket.values, value)
                 if len(bucket.values) > DEFAULT_BUCKET_SIZE:
                     bucket = self.bucketSplitter(bucket, name)                    
             else:
-                bucket = Bucket(search_key_min=search_key_min,
-                                search_key_max=search_key_max,
+                bucket = Bucket(search_key_min=0,
+                                search_key_max=DEFAULT_SEARCH_KEY_MAX,
                                 values=[value])
+                print(f'Storing {value.search_key}/{name} in {bucket.search_key_min} {bucket.search_key_max}')
             self._db.put(key, thrift_serialize(bucket))
 
     def Get(self, key):
@@ -209,7 +223,7 @@ class Handler:
     #         return []
 
     def RangeRecursiveForward(self, bucket, name, search_key_min, search_key_max):
-        print(f'Range: {search_key_min},  {search_key_max},    Bucket: {bucket}')
+        # print(f'Range: {search_key_min},  {search_key_max},    Bucket: {bucket.search_key_min}  {bucket.search_key_max}')
         label = get_label(bucket.search_key_min, bucket.search_key_max)
         result = []
         for item in bucket.values:
@@ -224,22 +238,24 @@ class Handler:
         while True:
             if leftwards:
                 bLabel = get_left_neighbour(label)
-                print(f'Left neighbour: {bLabel}')
+                # print(f'Left neighbour: {bLabel}')
             else:
                 bLabel = get_right_neighbour(label)
-                print(f'Right neighbour: {bLabel}')
+                # print(f'Right neighbour: {bLabel}')
             
             if label == bLabel: # Stopping condition
                 return result
             else:
+                print(f'bLabel == {bLabel}, label == {label}')
                 label = bLabel
 
             inteval = get_label_range(bLabel)
+            # print(f'Interv: {inteval[0]} , {inteval[1]}')
             if inteval[0] > search_key_max or inteval[1] <= search_key_min:  # intersection is NULL, stop recursion & iteration
-                print('1:Intersection null')
+                # print('1:Intersection null')
                 return result
             elif inteval[0] >= search_key_min and  inteval[1] - 1 <=  search_key_max:   # Range totaly covers the interval, recurse down, then iterate left/right
-                print('2:interval in Range')
+                # print('2:interval in Range')
                 dht_key = digest(f'{name}:{naming_func(bLabel)}')
                 peers = self.FindClosestPeers(dht_key)
                 nextBucket = None
@@ -252,12 +268,12 @@ class Handler:
                     except:
                         pass
                 if nextBucket is None:
-                    print("NOT GOOD, Recursive forward ERROR!!!")
+                    print(f"NOT GOOD, Recursive forward ERROR!!! {peer.port} {name}:{naming_func(bLabel)}")
                     return result
                 else:
                     result = result + self.RangeRecursiveForward(nextBucket,name,inteval[0],inteval[1]-1)
             else:   #range partially covers , recurse down, stop iterating
-                print('3:Range partially cover')
+                # print('3:Range partially cover')
                 dht_key = digest(f'{name}:{bLabel}')
                 peers = self.FindClosestPeers(dht_key)
                 nextBucket = None
@@ -280,11 +296,11 @@ class Handler:
                             nextBucket = thrift_unserialize(client.Get(dht_key), Bucket())
                             break
                         except:
-                            print("NOT GOOD, Recursive forward ERROR 2  !!!")
+                            print(f"NOT GOOD, Recursive forward ERROR 2  !!! {peer.port} {name}:{naming_func(bLabel)}")
                             pass
                 result = result + self.RangeRecursiveForward(nextBucket,name,max(inteval[0],search_key_min),min(inteval[1] - 1, search_key_max))
                 return result
-        
+
     def GetRange(self, name, search_key_min, search_key_max): 
         label = self._lookup(name, search_key_min)
         print(f'key: {name}   Range label:  {label}')
@@ -295,13 +311,16 @@ class Handler:
             client = Client(peer.host, peer.port)
             client.connect()
             try:
+                print(f'GetRange on {peer.host}:{peer.port}')
                 bucket = client.Get(dht_key)
                 if bucket is not None:
-                    print('Here!')
+                    # print('Here!')
                     bucket = thrift_unserialize(bucket, Bucket())      
             except StorageException:
                 pass
-        
+        if bucket is None:
+            print('Bucket is EMPTY!!!!!!!')
+            return []
         return self.RangeRecursiveForward(bucket, name, search_key_min, search_key_max)
  
     def _get_nonempty_bucket(self, key) -> Bucket:
