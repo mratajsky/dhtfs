@@ -58,6 +58,7 @@ class Handler:
             client.connect()
             try:
                 bucket_keys = client.GetBucketKeys(key)
+                print(f'Buck:{bucket_keys}')
                 return bucket_keys
             except StorageException:
                 pass
@@ -66,6 +67,7 @@ class Handler:
         lower_bound = 2
         upper_bound = DEFAULT_TREE_DEPTH + 1
         label = float_to_bin_no_dot(search_key_to_interval(search_key))
+        print(f'LookUp: {search_key}')
 
         while( upper_bound >= lower_bound):
             mid_point = (lower_bound + upper_bound) // 2
@@ -91,6 +93,8 @@ class Handler:
     def bucketSplitter(self, bucket, name):
         # split
         print(f"Splitter {name}")
+        if (bucket.search_key_min + 1) >= bucket.search_key_max:
+            return bucket
 
         midPoint = (bucket.search_key_max + bucket.search_key_min) // 2 
         if midPoint * 2 < bucket.search_key_max:
@@ -106,7 +110,8 @@ class Handler:
                 bucketLeft.values.append(x)
             else:
                 bucketRight.values.append(x) 
-        
+        print(f'Buck L: {bucketLeft}')
+        print(f'Buck R: {bucketRight}')
 
         label = get_label(bucket.search_key_min, bucket.search_key_max)
         print(f"Label: {label}")
@@ -115,7 +120,6 @@ class Handler:
         indx = random.randint(0,len(peers)-1)
         client = Client(peers[indx].host, peers[indx].port)
         client.connect()
-        print('==')
 
         if label[-1] == '0':
             if len(bucketLeft.values) > DEFAULT_BUCKET_SIZE:
@@ -142,7 +146,7 @@ class Handler:
 
     def GetBucketKeys(self, key):
         logger.debug(f"RPC: GetBucketKeys({key.hex()})")
-        bucket = self._get_nonempty_bucket(key)
+        bucket = self._get_existing_bucket(key)
         return BucketKeys(bucket.search_key_min, bucket.search_key_max)
 
     def Put(self, key, value):
@@ -161,9 +165,7 @@ class Handler:
                  # TODO: this is not total ordering
                 self.insort_right(bucket.values, value)
                 if len(bucket.values) > DEFAULT_BUCKET_SIZE:
-                    print(1)
                     bucket = self.bucketSplitter(bucket, name)                    
-                    print(2)
             else:
                 bucket = Bucket(search_key_min=search_key_min,
                                 search_key_max=search_key_max,
@@ -178,11 +180,11 @@ class Handler:
             raise StorageException(404, 'Key not found')
         return value
 
-    def GetLatest(self, key):
+    def GetLatest(self, name):
         logger.debug(f"RPC: GetLatest({key.hex()})")
         return self._get_nonempty_bucket(key).values[-1]
 
-    def GetLatestMax(self, key, search_key_max):
+    def GetLatestMax(self, name, search_key_max):
         logger.debug(f"RPC: GetLatestMax({key.hex()}, {search_key_max})")
         bucket = self._get_nonempty_bucket(key)
         idx = self.bisect_right(bucket.values, search_key_max)
@@ -206,21 +208,37 @@ class Handler:
     #         return []
 
     def RangeRecursiveForward(self, bucket, name, search_key_min, search_key_max):
-        bLabel = get_label(bucket.search_key_min, bucket.search_key_max)
+        print(f'Range: {search_key_min},  {search_key_max},    Bucket: {bucket}')
+        label = get_label(bucket.search_key_min, bucket.search_key_max)
         result = []
         for item in bucket.values:
             if item.search_key >= search_key_min and item.search_key <= search_key_max:
-                result = result + item
+                result = result + [item]
+
+        if label[-1] == '1' and label[-2] == '1':
+            leftwards = True
+        else:
+            leftwards = False
+
         while True:
-            if bLabel[-1] == '1' and bLabel[-2] == '1':
-                bLabel = get_left_neighbour(bLabel)
+            if leftwards:
+                bLabel = get_left_neighbour(label)
+                print(f'Left neighbour: {bLabel}')
             else:
-                bLabel = get_right_neighbour(bLabel)
+                bLabel = get_right_neighbour(label)
+                print(f'Right neighbour: {bLabel}')
+            
+            if label == bLabel: # Stopping condition
+                return result
+            else:
+                label = bLabel
+
             inteval = get_label_range(bLabel)
             if inteval[0] > search_key_max or inteval[1] <= search_key_min:  # intersection is NULL, stop recursion & iteration
+                print('1:Intersection null')
                 return result
             elif inteval[0] >= search_key_min and inteval[1] - 1 <= search_key_max:   # Range totaly covers the interval, recurse down, then iterate left/right
-                
+                print('2:interval in Range')
                 dht_key = digest(f'{name}:{naming_func(bLabel)}')
                 peers = self.FindClosestPeers(dht_key)
                 nextBucket = None
@@ -228,7 +246,7 @@ class Handler:
                     client = Client(peer.host, peer.port)
                     client.connect()
                     try:
-                        nextBucket = client.Get(dht_key)
+                        nextBucket = thrift_unserialize(client.Get(dht_key), Bucket())
                         break
                     except:
                         pass
@@ -238,6 +256,7 @@ class Handler:
                 else:
                     result = result + self.RangeRecursiveForward(nextBucket,name,inteval[0],inteval[1])
             else:   #range partially covers , recurse down, stop iterating
+                print('3:Range partially cover')
                 dht_key = digest(f'{name}:{bLabel}')
                 peers = self.FindClosestPeers(dht_key)
                 nextBucket = None
@@ -245,7 +264,7 @@ class Handler:
                     client = Client(peer.host, peer.port)
                     client.connect()
                     try:
-                        nextBucket = client.Get(dht_key)
+                        nextBucket = thrift_unserialize(client.Get(dht_key), Bucket())
                         break
                     except:
                         pass
@@ -257,7 +276,7 @@ class Handler:
                         client = Client(peer.host, peer.port)
                         client.connect()
                         try:
-                            nextBucket = client.Get(dht_key)
+                            nextBucket = thrift_unserialize(client.Get(dht_key), Bucket())
                             break
                         except:
                             print("NOT GOOD, Recursive forward ERROR 2  !!!")
@@ -265,26 +284,24 @@ class Handler:
                 result = result + self.RangeRecursiveForward(nextBucket,name,max(inteval[0],search_key_min),min(inteval[1]-1,search_key_max))
                 return result
         
-    def GetRange(self, key, search_key_min, search_key_max): 
-        # TO-DO  chenger variable key to name/ident (need thrift update)
-        label = self._lookup(key, search_key_min)
-        print(f'key: {key}   Range label:  {label}')
+    def GetRange(self, name, search_key_min, search_key_max): 
+        label = self._lookup(name, search_key_min)
+        print(f'key: {name}   Range label:  {label}')
         dht_key = digest(label)
         closest = self._find_closest_peers(dht_key)
         bucket = None
-        print('1')
         for peer in closest:
             client = Client(peer.host, peer.port)
             client.connect()
             try:
                 bucket = client.Get(dht_key)
                 if bucket is not None:
-                    print("did it!")
-                    break
+                    print('Here!')
+                    bucket = thrift_unserialize(bucket, Bucket())      
             except StorageException:
                 pass
         
-        return self.RangeRecursiveForward(bucket, key, search_key_min, search_key_max)
+        return self.RangeRecursiveForward(bucket, name, search_key_min, search_key_max)
  
     def _get_nonempty_bucket(self, key) -> Bucket:
         bucket = self._db.get(key)
@@ -293,6 +310,16 @@ class Handler:
             if not isinstance(bucket.values, list):
                 raise StorageException(405, 'Key contains non-bucket value')
         if bucket is None or len(bucket.values) == 0:
+            raise StorageException(404, 'Bucket is empty')
+        return bucket
+
+    def _get_existing_bucket(self, key) -> Bucket:
+        bucket = self._db.get(key)
+        if bucket is not None:
+            bucket = thrift_unserialize(bucket, Bucket())
+            if not isinstance(bucket.values, list):
+                raise StorageException(405, 'Key contains non-bucket value')
+        if bucket is None:
             raise StorageException(404, 'Bucket is empty')
         return bucket
 

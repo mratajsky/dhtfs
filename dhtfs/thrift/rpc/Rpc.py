@@ -52,25 +52,25 @@ class Iface(object):
         """
         pass
 
-    def GetLatest(self, key):
+    def GetLatest(self, name):
         """
         Parameters:
-         - key
+         - name
         """
         pass
 
-    def GetLatestMax(self, key, search_key_max):
+    def GetLatestMax(self, name, search_key_max):
         """
         Parameters:
-         - key
+         - name
          - search_key_max
         """
         pass
 
-    def GetRange(self, key, search_key_min, search_key_max):
+    def GetRange(self, name, search_key_min, search_key_max):
         """
         Parameters:
-         - key
+         - name
          - search_key_min
          - search_key_max
         """
@@ -233,18 +233,18 @@ class Client(Iface):
             raise result.err
         raise TApplicationException(TApplicationException.MISSING_RESULT, "Get failed: unknown result")
 
-    def GetLatest(self, key):
+    def GetLatest(self, name):
         """
         Parameters:
-         - key
+         - name
         """
-        self.send_GetLatest(key)
+        self.send_GetLatest(name)
         return self.recv_GetLatest()
 
-    def send_GetLatest(self, key):
+    def send_GetLatest(self, name):
         self._oprot.writeMessageBegin('GetLatest', TMessageType.CALL, self._seqid)
         args = GetLatest_args()
-        args.key = key
+        args.name = name
         args.write(self._oprot)
         self._oprot.writeMessageEnd()
         self._oprot.trans.flush()
@@ -266,19 +266,19 @@ class Client(Iface):
             raise result.err
         raise TApplicationException(TApplicationException.MISSING_RESULT, "GetLatest failed: unknown result")
 
-    def GetLatestMax(self, key, search_key_max):
+    def GetLatestMax(self, name, search_key_max):
         """
         Parameters:
-         - key
+         - name
          - search_key_max
         """
-        self.send_GetLatestMax(key, search_key_max)
+        self.send_GetLatestMax(name, search_key_max)
         return self.recv_GetLatestMax()
 
-    def send_GetLatestMax(self, key, search_key_max):
+    def send_GetLatestMax(self, name, search_key_max):
         self._oprot.writeMessageBegin('GetLatestMax', TMessageType.CALL, self._seqid)
         args = GetLatestMax_args()
-        args.key = key
+        args.name = name
         args.search_key_max = search_key_max
         args.write(self._oprot)
         self._oprot.writeMessageEnd()
@@ -301,20 +301,20 @@ class Client(Iface):
             raise result.err
         raise TApplicationException(TApplicationException.MISSING_RESULT, "GetLatestMax failed: unknown result")
 
-    def GetRange(self, key, search_key_min, search_key_max):
+    def GetRange(self, name, search_key_min, search_key_max):
         """
         Parameters:
-         - key
+         - name
          - search_key_min
          - search_key_max
         """
-        self.send_GetRange(key, search_key_min, search_key_max)
+        self.send_GetRange(name, search_key_min, search_key_max)
         return self.recv_GetRange()
 
-    def send_GetRange(self, key, search_key_min, search_key_max):
+    def send_GetRange(self, name, search_key_min, search_key_max):
         self._oprot.writeMessageBegin('GetRange', TMessageType.CALL, self._seqid)
         args = GetRange_args()
-        args.key = key
+        args.name = name
         args.search_key_min = search_key_min
         args.search_key_max = search_key_max
         args.write(self._oprot)
@@ -538,7 +538,7 @@ class Processor(Iface, TProcessor):
         iprot.readMessageEnd()
         result = GetLatest_result()
         try:
-            result.success = self._handler.GetLatest(args.key)
+            result.success = self._handler.GetLatest(args.name)
             msg_type = TMessageType.REPLY
         except TTransport.TTransportException:
             raise
@@ -564,7 +564,7 @@ class Processor(Iface, TProcessor):
         iprot.readMessageEnd()
         result = GetLatestMax_result()
         try:
-            result.success = self._handler.GetLatestMax(args.key, args.search_key_max)
+            result.success = self._handler.GetLatestMax(args.name, args.search_key_max)
             msg_type = TMessageType.REPLY
         except TTransport.TTransportException:
             raise
@@ -590,7 +590,7 @@ class Processor(Iface, TProcessor):
         iprot.readMessageEnd()
         result = GetRange_result()
         try:
-            result.success = self._handler.GetRange(args.key, args.search_key_min, args.search_key_max)
+            result.success = self._handler.GetRange(args.name, args.search_key_min, args.search_key_max)
             msg_type = TMessageType.REPLY
         except TTransport.TTransportException:
             raise
@@ -1217,12 +1217,12 @@ Get_result.thrift_spec = (
 class GetLatest_args(object):
     """
     Attributes:
-     - key
+     - name
     """
 
 
-    def __init__(self, key=None,):
-        self.key = key
+    def __init__(self, name=None,):
+        self.name = name
 
     def read(self, iprot):
         if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
@@ -1235,7 +1235,7 @@ class GetLatest_args(object):
                 break
             if fid == 1:
                 if ftype == TType.STRING:
-                    self.key = iprot.readBinary()
+                    self.name = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
                 else:
                     iprot.skip(ftype)
             else:
@@ -1248,9 +1248,9 @@ class GetLatest_args(object):
             oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
             return
         oprot.writeStructBegin('GetLatest_args')
-        if self.key is not None:
-            oprot.writeFieldBegin('key', TType.STRING, 1)
-            oprot.writeBinary(self.key)
+        if self.name is not None:
+            oprot.writeFieldBegin('name', TType.STRING, 1)
+            oprot.writeString(self.name.encode('utf-8') if sys.version_info[0] == 2 else self.name)
             oprot.writeFieldEnd()
         oprot.writeFieldStop()
         oprot.writeStructEnd()
@@ -1271,7 +1271,7 @@ class GetLatest_args(object):
 all_structs.append(GetLatest_args)
 GetLatest_args.thrift_spec = (
     None,  # 0
-    (1, TType.STRING, 'key', 'BINARY', None, ),  # 1
+    (1, TType.STRING, 'name', 'UTF8', None, ),  # 1
 )
 
 
@@ -1352,13 +1352,13 @@ GetLatest_result.thrift_spec = (
 class GetLatestMax_args(object):
     """
     Attributes:
-     - key
+     - name
      - search_key_max
     """
 
 
-    def __init__(self, key=None, search_key_max=None,):
-        self.key = key
+    def __init__(self, name=None, search_key_max=None,):
+        self.name = name
         self.search_key_max = search_key_max
 
     def read(self, iprot):
@@ -1372,7 +1372,7 @@ class GetLatestMax_args(object):
                 break
             if fid == 1:
                 if ftype == TType.STRING:
-                    self.key = iprot.readBinary()
+                    self.name = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
                 else:
                     iprot.skip(ftype)
             elif fid == 2:
@@ -1390,9 +1390,9 @@ class GetLatestMax_args(object):
             oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
             return
         oprot.writeStructBegin('GetLatestMax_args')
-        if self.key is not None:
-            oprot.writeFieldBegin('key', TType.STRING, 1)
-            oprot.writeBinary(self.key)
+        if self.name is not None:
+            oprot.writeFieldBegin('name', TType.STRING, 1)
+            oprot.writeString(self.name.encode('utf-8') if sys.version_info[0] == 2 else self.name)
             oprot.writeFieldEnd()
         if self.search_key_max is not None:
             oprot.writeFieldBegin('search_key_max', TType.I64, 2)
@@ -1417,7 +1417,7 @@ class GetLatestMax_args(object):
 all_structs.append(GetLatestMax_args)
 GetLatestMax_args.thrift_spec = (
     None,  # 0
-    (1, TType.STRING, 'key', 'BINARY', None, ),  # 1
+    (1, TType.STRING, 'name', 'UTF8', None, ),  # 1
     (2, TType.I64, 'search_key_max', None, None, ),  # 2
 )
 
@@ -1499,14 +1499,14 @@ GetLatestMax_result.thrift_spec = (
 class GetRange_args(object):
     """
     Attributes:
-     - key
+     - name
      - search_key_min
      - search_key_max
     """
 
 
-    def __init__(self, key=None, search_key_min=None, search_key_max=None,):
-        self.key = key
+    def __init__(self, name=None, search_key_min=None, search_key_max=None,):
+        self.name = name
         self.search_key_min = search_key_min
         self.search_key_max = search_key_max
 
@@ -1521,7 +1521,7 @@ class GetRange_args(object):
                 break
             if fid == 1:
                 if ftype == TType.STRING:
-                    self.key = iprot.readBinary()
+                    self.name = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
                 else:
                     iprot.skip(ftype)
             elif fid == 2:
@@ -1544,9 +1544,9 @@ class GetRange_args(object):
             oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
             return
         oprot.writeStructBegin('GetRange_args')
-        if self.key is not None:
-            oprot.writeFieldBegin('key', TType.STRING, 1)
-            oprot.writeBinary(self.key)
+        if self.name is not None:
+            oprot.writeFieldBegin('name', TType.STRING, 1)
+            oprot.writeString(self.name.encode('utf-8') if sys.version_info[0] == 2 else self.name)
             oprot.writeFieldEnd()
         if self.search_key_min is not None:
             oprot.writeFieldBegin('search_key_min', TType.I64, 2)
@@ -1575,7 +1575,7 @@ class GetRange_args(object):
 all_structs.append(GetRange_args)
 GetRange_args.thrift_spec = (
     None,  # 0
-    (1, TType.STRING, 'key', 'BINARY', None, ),  # 1
+    (1, TType.STRING, 'name', 'UTF8', None, ),  # 1
     (2, TType.I64, 'search_key_min', None, None, ),  # 2
     (3, TType.I64, 'search_key_max', None, None, ),  # 3
 )

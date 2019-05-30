@@ -7,7 +7,7 @@ from thrift.protocol import TBinaryProtocol
 
 #TO-DO,   max depth of tree variable, search window
 DEFAULT_TREE_DEPTH = 32
-DEFAULT_SEARCH_KEY_MAX = 100 #4294967296 #seconds granularity, 10 days period
+DEFAULT_SEARCH_KEY_MAX = 128 #4294967296 #seconds granularity, 10 days period
 DEFAULT_BUCKET_SIZE = 5
 
 # __all__ = ['defaults',
@@ -99,7 +99,7 @@ def search_key_to_interval(search_key, range_max=DEFAULT_SEARCH_KEY_MAX):
 
 def get_label(range_min,range_max,total_len=DEFAULT_SEARCH_KEY_MAX): 
     '''get label of bucket'''
-    print(f"GET Label MIN: {range_min}  MAX: {range_max}")
+    #print(f"GET Label MIN: {range_min}  MAX: {range_max}")
     rMin = range_min*1.0/total_len
     rMax = (range_max-1)*1.0/total_len
     binMin = float_to_bin_no_dot(rMin,DEFAULT_TREE_DEPTH)
@@ -122,7 +122,7 @@ def get_label(range_min,range_max,total_len=DEFAULT_SEARCH_KEY_MAX):
     return label
 
 def get_right_neighbour(label):
-    if naming_func(label) == '#0':
+    if naming_func(label) == '#0' or label == '#0':
         return label
     for i in range(len(label)-1,-1,-1):
         if label[i] == '0':
@@ -140,7 +140,7 @@ def get_left_neighbour(label):
 
 def get_label_range(label):
     lower = 0
-    higher = 4294967296
+    higher = DEFAULT_SEARCH_KEY_MAX
     for i in range(2,len(label)):
         midPoint = (lower + higher) // 2
         if midPoint * 2 < higher:
