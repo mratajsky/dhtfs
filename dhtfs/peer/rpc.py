@@ -238,7 +238,7 @@ class Handler:
             if inteval[0] > search_key_max or inteval[1] <= search_key_min:  # intersection is NULL, stop recursion & iteration
                 print('1:Intersection null')
                 return result
-            elif inteval[0] >= search_key_min and inteval[1] - 1 <= search_key_max:   # Range totaly covers the interval, recurse down, then iterate left/right
+            elif inteval[0] >= search_key_min and  inteval[1] - 1 <=  search_key_max:   # Range totaly covers the interval, recurse down, then iterate left/right
                 print('2:interval in Range')
                 dht_key = digest(f'{name}:{naming_func(bLabel)}')
                 peers = self.FindClosestPeers(dht_key)
@@ -255,7 +255,7 @@ class Handler:
                     print("NOT GOOD, Recursive forward ERROR!!!")
                     return result
                 else:
-                    result = result + self.RangeRecursiveForward(nextBucket,name,inteval[0],inteval[1])
+                    result = result + self.RangeRecursiveForward(nextBucket,name,inteval[0],inteval[1]-1)
             else:   #range partially covers , recurse down, stop iterating
                 print('3:Range partially cover')
                 dht_key = digest(f'{name}:{bLabel}')
@@ -282,7 +282,7 @@ class Handler:
                         except:
                             print("NOT GOOD, Recursive forward ERROR 2  !!!")
                             pass
-                result = result + self.RangeRecursiveForward(nextBucket,name,max(inteval[0],search_key_min),min(inteval[1]-1,search_key_max))
+                result = result + self.RangeRecursiveForward(nextBucket,name,max(inteval[0],search_key_min),min(inteval[1] - 1, search_key_max))
                 return result
         
     def GetRange(self, name, search_key_min, search_key_max): 

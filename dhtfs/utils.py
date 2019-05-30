@@ -6,7 +6,7 @@ from thrift.transport import TTransport
 from thrift.protocol import TBinaryProtocol
 
 #TO-DO,   max depth of tree variable, search window
-DEFAULT_TREE_DEPTH = 32
+DEFAULT_TREE_DEPTH = 8
 DEFAULT_SEARCH_KEY_MAX = 128 #4294967296 #seconds granularity, 10 days period
 DEFAULT_BUCKET_SIZE = 5
 
