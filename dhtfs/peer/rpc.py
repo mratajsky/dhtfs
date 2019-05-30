@@ -110,36 +110,44 @@ class Handler:
                 bucketLeft.values.append(x)
             else:
                 bucketRight.values.append(x) 
-        print(f'Buck L: {bucketLeft}')
-        print(f'Buck R: {bucketRight}')
+
 
         label = get_label(bucket.search_key_min, bucket.search_key_max)
-        print(f"Label: {label}")
+  
         dht_key = digest(f'{name}:{label}')
         peers = self.FindClosestPeers(dht_key)
         indx = random.randint(0,len(peers)-1)
         client = Client(peers[indx].host, peers[indx].port)
-        client.connect()
+        
 
         if label[-1] == '0':
             if len(bucketLeft.values) > DEFAULT_BUCKET_SIZE:
-                print(f'here1 {client}')
+                client.connect()
                 client.Put(dht_key, thrift_serialize(bucketRight))
-                print('here2')
+                client = None
                 return self.bucketSplitter(bucketLeft, name)
             if len(bucketRight.values) > DEFAULT_BUCKET_SIZE:
-                client.Put(dht_key, thrift_serialize(self.bucketSplitter(bucketRight,name)))
+                buck = thrift_serialize(self.bucketSplitter(bucketRight,name))
+                client.connect()
+                client.Put(dht_key, buck)
                 return bucketLeft
-            print('base')
+
+            client.connect()
             client.Put(dht_key, thrift_serialize(bucketRight))
+
             return bucketLeft
         else:
             if len(bucketRight.values) > DEFAULT_BUCKET_SIZE:
+                client.connect()
                 client.Put(dht_key, thrift_serialize(bucketLeft))
+                client = None
                 return self.bucketSplitter(bucketRight,name)
             if len(bucketLeft.values) > DEFAULT_BUCKET_SIZE:
-                client.Put(dht_key, thrift_serialize(self.bucketSplitter(bucketLeft,name)))
+                buck = thrift_serialize(self.bucketSplitter(bucketLeft,name))
+                client.connect()
+                client.Put(dht_key, buck)
                 return bucketRight
+            client.connect()
             client.Put(dht_key, thrift_serialize(bucketLeft))
             return bucketRight
 
