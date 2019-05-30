@@ -57,9 +57,7 @@ class Handler:
             client = Client(peer.host, peer.port)
             client.connect()
             try:
-                bucket_keys = client.GetBucketKeys(key)
-                print(f'Buck:{bucket_keys}')
-                return bucket_keys
+                return client.GetBucketKeys(key)
             except StorageException:
                 pass
 
@@ -67,7 +65,6 @@ class Handler:
         lower_bound = 2
         upper_bound = DEFAULT_TREE_DEPTH + 1
         label = float_to_bin_no_dot(search_key_to_interval(search_key))
-        print(f'LookUp: {search_key}')
 
         while( upper_bound >= lower_bound):
             mid_point = (lower_bound + upper_bound) // 2
@@ -75,7 +72,6 @@ class Handler:
             dht_key = naming_func(f'{ident}:{prefix}')
 
             bucket_keys = self._find_search_keys(digest(dht_key))
-            print(f'used: {dht_key}, got: {bucket_keys}')
            
             if bucket_keys is None:
                 if upper_bound == len(prefix):
@@ -87,12 +83,10 @@ class Handler:
                     return dht_key
                 lower_bound = len(next_naming_func(prefix, label))
 
-        print(f'return {ident}:#')
         return f'{ident}:#'
 
     def bucketSplitter(self, bucket, name):
         # split
-        print(f"Splitter {name}")
         if (bucket.search_key_min + 1) >= bucket.search_key_max:
             return bucket
 
@@ -115,16 +109,15 @@ class Handler:
         label = get_label(bucket.search_key_min, bucket.search_key_max)
   
         dht_key = digest(f'{name}:{label}')
-        peers = self.FindClosestPeers(dht_key)
+        peers = self._find_closest_peers(dht_key)
         indx = random.randint(0,len(peers)-1)
         client = Client(peers[indx].host, peers[indx].port)
-        
 
         if label[-1] == '0':
             if len(bucketLeft.values) > DEFAULT_BUCKET_SIZE:
                 client.connect()
                 client.Put(dht_key, thrift_serialize(bucketRight))
-                client = None
+                client.disconnect()
                 return self.bucketSplitter(bucketLeft, name)
             if len(bucketRight.values) > DEFAULT_BUCKET_SIZE:
                 buck = thrift_serialize(self.bucketSplitter(bucketRight,name))
@@ -140,7 +133,7 @@ class Handler:
             if len(bucketRight.values) > DEFAULT_BUCKET_SIZE:
                 client.connect()
                 client.Put(dht_key, thrift_serialize(bucketLeft))
-                client = None
+                client.disconnect()
                 return self.bucketSplitter(bucketRight,name)
             if len(bucketLeft.values) > DEFAULT_BUCKET_SIZE:
                 buck = thrift_serialize(self.bucketSplitter(bucketLeft,name))

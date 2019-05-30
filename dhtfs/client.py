@@ -21,9 +21,7 @@ class Client:
         self._host = host
         self._port = port
         socket = TSocket.TSocket(host, port)
-        # Buffering is critical. Raw sockets are very slow
         self._transport = TTransport.TFramedTransport(socket)
-        # Wrap in a protocol
         protocol = TCompactProtocol.TCompactProtocolAccelerated(self._transport)
         # Create a client to use the protocol encoder
         self._client = Rpc.Client(protocol)
@@ -36,6 +34,10 @@ class Client:
     def connect(self):
         self._transport.open()
         self._connected = True
+
+    def disconnect(self):
+        self._transport.close()
+        self._connected = False
 
     # Iterative methods
     def add_iterative(self, key, bucket_value, name, search_key_min, search_key_max):
@@ -106,10 +108,8 @@ class Client:
             inumber=inumber,
             mtime=0,
             directory_data=DirData(entries={}))
-        if model == FileSystemModel.PASTIS:
-            self.put_inode(fs_name, inumber, value)
-        else:
-            # TODO: min-max should be 0-chosen period
+        self.put_inode(fs_name, inumber, value)
+        if model != FileSystemModel.PASTIS:
             self.add_inode(fs_name, inumber, value, 0, 0, DEFAULT_SEARCH_KEY_MAX)
 
         # Store the description
@@ -117,7 +117,7 @@ class Client:
             name=fs_name,
             model=model,
             block_size=block_size,
-            inception=int(datetime.datetime.now().timestamp()),
+            inception=int(datetime.datetime.now().timestamp() * 1000),
             root=inumber)
         self.put_iterative(f'F:{fs_name}', thrift_serialize(value))
 
@@ -171,8 +171,9 @@ class Client:
                   search_key_max):
         assert self._connected
         value = thrift_serialize(inode)
-        self.add_iterative(f'I:{fs_name}:{inumber}',
+        self.add_iterative(f'X:{fs_name}:{inumber}',
                            BucketValue(value=value, search_key=search_key),
+                           f'X:{fs_name}:{inumber}',
                            search_key_min,
                            search_key_max)
 
@@ -220,4 +221,3 @@ class Client:
         assert self._connected
         logging.debug(f'Put: {self._host}:{self._port}')
         self._client.Put(kd, bin_value)
-    
