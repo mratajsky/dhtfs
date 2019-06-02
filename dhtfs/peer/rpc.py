@@ -199,28 +199,75 @@ class Handler:
         logger.debug(f"RPC: GetLatest({key.hex()})")
         return self._get_nonempty_bucket(key).values[-1]
 
-    def GetLatestMax(self, name, search_key_max):
-        logger.debug(f"RPC: GetLatestMax({key.hex()}, {search_key_max})")
-        bucket = self._get_nonempty_bucket(key)
-        idx = self.bisect_right(bucket.values, search_key_max)
-        if idx == 0:
-            raise StorageException(404, 'No matching value found')
-        return bucket.values[idx - 1]
+    def LatestMaxRecursiveBackwards(self, bucket, name):
+        label = get_label(bucket.search_key_min, bucket.search_key_max)
+        bLabel = get_left_neighbour(label)
+        if label == bLabel: # Stopping condition
+                return
+        else:
+            print(f'bLabel == {bLabel}, label == {label}')
+            label = bLabel
 
-    # def GetRange(self, key, search_key_min, search_key_max):
-    #     logger.debug(f"RPC: GetRange({key.hex()}, {search_key_min}, {search_key_max})")
-    #     try:
-    #         bucket = self._get_nonempty_bucket(key)
-    #         idx_min = self.bisect_left(bucket.values, search_key_min)
-    #         if idx_min == len(bucket.values):
-    #             return []
-    #         idx_max = self.bisect_right(bucket.values, search_key_max)
-    #         if idx_max == 0:
-    #             return []
-    #         return bucket.values[idx_min:idx_max]
-    #     except StorageException:
-    #         #Empty bucket
-    #         return []
+        dht_key = digest(f'{name}:{bLabel}')
+        peers = self.FindClosestPeers(dht_key)
+        nextBucket = None
+        for peer in peers:
+            client = Client(peer.host, peer.port)
+            client.connect()
+            try:
+                nextBucket = thrift_unserialize(client.Get(dht_key), Bucket())
+                break
+            except:
+                pass
+        if nextBucket is None:
+            dht_key = digest(f'{name}:{naming_func(bLabel)}')
+            peers = self.FindClosestPeers(dht_key)
+            nextBucket = None
+            for peer in peers:
+                client = Client(peer.host, peer.port)
+                client.connect()
+                try:
+                    nextBucket = thrift_unserialize(client.Get(dht_key), Bucket())
+                    break
+                except:
+                    print(f"Latest MAX ERROR !!! {peer.port} {name}:{naming_func(bLabel)}")
+                    pass
+
+        if nextBucket is not None:
+            if len(nextBucket.values) != 0:
+                return nextBucket.values[-1]
+            else:
+                return self.LatestMaxRecursiveBackwards(nextBucket, name)
+        else:
+            print("LATEST MAX: MISSING BUCKET!!")
+            return
+
+
+    def GetLatestMax(self, name, search_key_max):
+        label = self._lookup(name, search_key_max)
+        print(f'Lates Max  key: {name}   Range label:  {label}')
+        dht_key = digest(label)
+        closest = self._find_closest_peers(dht_key)
+        bucket = None
+        for peer in closest:
+            client = Client(peer.host, peer.port)
+            client.connect()
+            try:
+                print(f'Get Latest Max on {peer.host}:{peer.port}')
+                bucket = client.Get(dht_key)
+                if bucket is not None:
+                    # print('Here!')
+                    bucket = thrift_unserialize(bucket, Bucket())      
+            except StorageException:
+                pass
+        if bucket is None:
+            print('Bucket is EMPTY!!!!!!!')
+            return
+        for value in reversed(bucket.values):
+            if value.search_key <= search_key_max:
+                return value
+
+        return self.LatestMaxRecursiveBackwards(bucket, name)
 
     def RangeRecursiveForward(self, bucket, name, search_key_min, search_key_max):
         # print(f'Range: {search_key_min},  {search_key_max},    Bucket: {bucket.search_key_min}  {bucket.search_key_max}')
