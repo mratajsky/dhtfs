@@ -93,16 +93,25 @@ class DHT:
             # List of nearest peers initially contains our own peer, this makes
             # sure our peer is considered for the result even if there are no
             # other peers
-            nearest = [Node(self._node.node.id, self.host, self.port)]
+            own_node = Node(self._node.node.id, self.host, self.port)
+            nearest = self._node.protocol.router.find_neighbors(
+                key_node,
+                k=self._node.ksize + 1)
+            nearest.append(own_node)
             crawler = NodeSpiderCrawl(
                 self._node.protocol,
                 key_node,
                 nearest,
                 self._node.ksize,
                 self._node.alpha)
+            crawler.nearest.mark_contacted(own_node)
+
             nodes = await crawler.find()
             if logger.isEnabledFor(logging.DEBUG):
                 import pprint
                 logger.debug('Found nodes:\n' +
                              pprint.pformat(nodes, indent=4, width=50))
-            self._rpc_pipe.send((ident, nodes))
+
+            # TODO: for now we only use K for search, but give the closest peer
+            # back to the application
+            self._rpc_pipe.send((ident, [nodes[0]]))
