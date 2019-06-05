@@ -245,6 +245,9 @@ def run():
             print(value)
         else:
             print('Value not found')
+    else:
+        import sys
+        print(f'No command given. Try {sys.argv[0]} -h')
 
 
 if __name__ == '__main__':
