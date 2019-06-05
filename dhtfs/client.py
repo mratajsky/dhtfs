@@ -8,7 +8,7 @@ from thrift.transport import TSocket
 from thrift.transport import TTransport
 from thrift.protocol import TBinaryProtocol, TCompactProtocol
 
-from .thrift.metadata.ttypes import FileSystem, FileSystemModel, Inode, InodeType, DirData
+from .thrift.metadata.ttypes import FileSystem, FileSystemModel, Inode, InodeType, DirData, FileDataIndirect
 from .thrift.rpc import Rpc
 from .thrift.rpc.ttypes import Bucket, BucketValue, Peer, StorageException
 from .utils import *
@@ -123,47 +123,39 @@ class Client:
 
     # Get inode by file system name and inode number
     def get_inode(self, fs_name, inumber):
-        value, bucket = self._get_inode_value_or_bucket(fs_name, inumber)
+        fs_desc = self.get_filesystem(fs_name)
+        if fs_desc is None:
+            return None
+        value = self.get_iterative(f'I:{fs_name}:{inumber}')
         if value is not None:
-            return value
-        if bucket is not None:
-            if not isinstance(bucket.values, list):
-                raise ValueError('Value is not a valid bucket (wrong model?)')
-            for bucket_value in bucket.values:
-                # Unserialize the BucketValues as well
-                bucket_value.value = thrift_unserialize(bucket_value.value, Inode())
-            return bucket
+            return thrift_unserialize(value, Inode())
+        return None
 
-    def get_inode_latest(self, fs_name, inumber, max_key=None):
-        if max_key is None:
-            bucket_value = self.get_iterative(
-                f'I:{fs_name}:{inumber}', 'GetLatest')
-        else:
-            bucket_value = self.get_iterative(
-                f'I:{fs_name}:{inumber}', 'GetLatestMax', max_key)
+    def get_inode_indirect(self, fs_name, inumber):
+        inode = self.get_inode(fs_name, inumber)
+        if not inode:
+            return None
+        indirect = []
+        for kd in inode.file_data.indirect:
+            indirect.append(thrift_unserialize(
+                self.get_iterative_digest(kd), FileDataIndirect()))
+        return indirect
+
+    def get_inode_latest(self, fs_name, inumber, max_key):
+        bucket_value = self.get_iterative(f'X:{fs_name}:{inumber}',
+                                          'GetLatestMax',
+                                          max_key)
         if bucket_value is not None:
             bucket_value.value = thrift_unserialize(bucket_value.value, Inode())
         return bucket_value
 
     def get_inode_range(self, fs_name, inumber, min_key, max_key):
-        values = self.get_iterative(f'I:{fs_name}:{inumber}', 'GetRange',
+        values = self.get_iterative(f'X:{fs_name}:{inumber}', 'GetRange',
                                     min_key,
                                     max_key)
         for bucket_value in values:
             bucket_value.value = thrift_unserialize(bucket_value.value, Inode())
         return values
-
-    def _get_inode_value_or_bucket(self, fs_name, inumber):
-        fs_desc = self.get_filesystem(fs_name)
-        if fs_desc is None:
-            return None, None
-        value = self.get_iterative(f'I:{fs_name}:{inumber}')
-        if value is not None:
-            if fs_desc.model == FileSystemModel.PASTIS:
-                return thrift_unserialize(value, Inode()), None
-            # Inodes are stored in a bucket
-            return None, thrift_unserialize(value, Bucket())
-        return None, None
 
     # Store inode
     def add_inode(self, fs_name, inumber, inode, search_key,
@@ -196,11 +188,6 @@ class Client:
         assert self._connected
         logging.debug(f'Get: {self._host}:{self._port}')
         return self._client.Get(kd)
-
-    def GetLatest(self, kd):
-        assert self._connected
-        logging.debug(f'GetLatest: {self._host}:{self._port}')
-        return self._client.GetLatest(kd)
 
     def GetLatestMax(self, kd, max_key):
         assert self._connected
