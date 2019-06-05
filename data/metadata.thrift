@@ -3,7 +3,7 @@ namespace c_glib Thrift
 enum FileSystemModel {
     PASTIS,     // Pastis model: overwrite everything
     BASIC,      // Basic dhtfs model: use indexing overlay
-    PUBSUB,     // Basic + publish/subscribe
+    SNAPSHOT    // Basic + snapshotting
 }
 
 enum InodeType {
@@ -13,8 +13,12 @@ enum InodeType {
 }
 
 enum InodeFlags {
-    EXECUTABLE = 1,
-    DELETED = 2
+    EXECUTABLE = 1
+}
+
+enum DirEntryDiffType {
+    ADD,
+    REMOVE
 }
 
 struct FileSystem {
@@ -27,17 +31,35 @@ struct FileSystem {
 
 struct FileData {
     1: required i64 size,
-    2: list<binary> blocks
+    2: list<binary> blocks,
+    3: list<binary> indirect
+}
+
+struct FileDataIndirect {
+    1: required list<binary> blocks,
+    2: bool valid = true
 }
 
 struct DirEntry {
     1: required i64 inumber,
-    2: required InodeType type,
-    3: required string name
+    2: required InodeType type
+}
+
+struct DirEntryDiff {
+    1: required DirEntryDiffType diff_type,
+    2: required DirEntry entry,
+    3: required i64 mtime,
+    4: required string name
 }
 
 struct DirData {
-    1: map<string, DirEntry> entries
+    1: map<string, DirEntry> entries,
+    2: list<binary> indirect
+}
+
+struct DirDataIndirect {
+    1: map<string, DirEntry> entries,
+    2: bool valid = true
 }
 
 struct SymLinkData {

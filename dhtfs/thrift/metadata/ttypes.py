@@ -19,18 +19,18 @@ all_structs = []
 class FileSystemModel(object):
     PASTIS = 0
     BASIC = 1
-    PUBSUB = 2
+    SNAPSHOT = 2
 
     _VALUES_TO_NAMES = {
         0: "PASTIS",
         1: "BASIC",
-        2: "PUBSUB",
+        2: "SNAPSHOT",
     }
 
     _NAMES_TO_VALUES = {
         "PASTIS": 0,
         "BASIC": 1,
-        "PUBSUB": 2,
+        "SNAPSHOT": 2,
     }
 
 
@@ -54,16 +54,28 @@ class InodeType(object):
 
 class InodeFlags(object):
     EXECUTABLE = 1
-    DELETED = 2
 
     _VALUES_TO_NAMES = {
         1: "EXECUTABLE",
-        2: "DELETED",
     }
 
     _NAMES_TO_VALUES = {
         "EXECUTABLE": 1,
-        "DELETED": 2,
+    }
+
+
+class DirEntryDiffType(object):
+    ADD = 0
+    REMOVE = 1
+
+    _VALUES_TO_NAMES = {
+        0: "ADD",
+        1: "REMOVE",
+    }
+
+    _NAMES_TO_VALUES = {
+        "ADD": 0,
+        "REMOVE": 1,
     }
 
 
@@ -180,12 +192,14 @@ class FileData(object):
     Attributes:
      - size
      - blocks
+     - indirect
     """
 
 
-    def __init__(self, size=None, blocks=None,):
+    def __init__(self, size=None, blocks=None, indirect=None,):
         self.size = size
         self.blocks = blocks
+        self.indirect = indirect
 
     def read(self, iprot):
         if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
@@ -211,6 +225,16 @@ class FileData(object):
                     iprot.readListEnd()
                 else:
                     iprot.skip(ftype)
+            elif fid == 3:
+                if ftype == TType.LIST:
+                    self.indirect = []
+                    (_etype9, _size6) = iprot.readListBegin()
+                    for _i10 in range(_size6):
+                        _elem11 = iprot.readBinary()
+                        self.indirect.append(_elem11)
+                    iprot.readListEnd()
+                else:
+                    iprot.skip(ftype)
             else:
                 iprot.skip(ftype)
             iprot.readFieldEnd()
@@ -228,8 +252,15 @@ class FileData(object):
         if self.blocks is not None:
             oprot.writeFieldBegin('blocks', TType.LIST, 2)
             oprot.writeListBegin(TType.STRING, len(self.blocks))
-            for iter6 in self.blocks:
-                oprot.writeBinary(iter6)
+            for iter12 in self.blocks:
+                oprot.writeBinary(iter12)
+            oprot.writeListEnd()
+            oprot.writeFieldEnd()
+        if self.indirect is not None:
+            oprot.writeFieldBegin('indirect', TType.LIST, 3)
+            oprot.writeListBegin(TType.STRING, len(self.indirect))
+            for iter13 in self.indirect:
+                oprot.writeBinary(iter13)
             oprot.writeListEnd()
             oprot.writeFieldEnd()
         oprot.writeFieldStop()
@@ -252,19 +283,94 @@ class FileData(object):
         return not (self == other)
 
 
+class FileDataIndirect(object):
+    """
+    Attributes:
+     - blocks
+     - valid
+    """
+
+
+    def __init__(self, blocks=None, valid=True,):
+        self.blocks = blocks
+        self.valid = valid
+
+    def read(self, iprot):
+        if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
+            iprot._fast_decode(self, iprot, [self.__class__, self.thrift_spec])
+            return
+        iprot.readStructBegin()
+        while True:
+            (fname, ftype, fid) = iprot.readFieldBegin()
+            if ftype == TType.STOP:
+                break
+            if fid == 1:
+                if ftype == TType.LIST:
+                    self.blocks = []
+                    (_etype17, _size14) = iprot.readListBegin()
+                    for _i18 in range(_size14):
+                        _elem19 = iprot.readBinary()
+                        self.blocks.append(_elem19)
+                    iprot.readListEnd()
+                else:
+                    iprot.skip(ftype)
+            elif fid == 2:
+                if ftype == TType.BOOL:
+                    self.valid = iprot.readBool()
+                else:
+                    iprot.skip(ftype)
+            else:
+                iprot.skip(ftype)
+            iprot.readFieldEnd()
+        iprot.readStructEnd()
+
+    def write(self, oprot):
+        if oprot._fast_encode is not None and self.thrift_spec is not None:
+            oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
+            return
+        oprot.writeStructBegin('FileDataIndirect')
+        if self.blocks is not None:
+            oprot.writeFieldBegin('blocks', TType.LIST, 1)
+            oprot.writeListBegin(TType.STRING, len(self.blocks))
+            for iter20 in self.blocks:
+                oprot.writeBinary(iter20)
+            oprot.writeListEnd()
+            oprot.writeFieldEnd()
+        if self.valid is not None:
+            oprot.writeFieldBegin('valid', TType.BOOL, 2)
+            oprot.writeBool(self.valid)
+            oprot.writeFieldEnd()
+        oprot.writeFieldStop()
+        oprot.writeStructEnd()
+
+    def validate(self):
+        if self.blocks is None:
+            raise TProtocolException(message='Required field blocks is unset!')
+        return
+
+    def __repr__(self):
+        L = ['%s=%r' % (key, value)
+             for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        return not (self == other)
+
+
 class DirEntry(object):
     """
     Attributes:
      - inumber
      - type
-     - name
     """
 
 
-    def __init__(self, inumber=None, type=None, name=None,):
+    def __init__(self, inumber=None, type=None,):
         self.inumber = inumber
         self.type = type
-        self.name = name
 
     def read(self, iprot):
         if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
@@ -285,11 +391,6 @@ class DirEntry(object):
                     self.type = iprot.readI32()
                 else:
                     iprot.skip(ftype)
-            elif fid == 3:
-                if ftype == TType.STRING:
-                    self.name = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
-                else:
-                    iprot.skip(ftype)
             else:
                 iprot.skip(ftype)
             iprot.readFieldEnd()
@@ -308,10 +409,6 @@ class DirEntry(object):
             oprot.writeFieldBegin('type', TType.I32, 2)
             oprot.writeI32(self.type)
             oprot.writeFieldEnd()
-        if self.name is not None:
-            oprot.writeFieldBegin('name', TType.STRING, 3)
-            oprot.writeString(self.name.encode('utf-8') if sys.version_info[0] == 2 else self.name)
-            oprot.writeFieldEnd()
         oprot.writeFieldStop()
         oprot.writeStructEnd()
 
@@ -320,6 +417,102 @@ class DirEntry(object):
             raise TProtocolException(message='Required field inumber is unset!')
         if self.type is None:
             raise TProtocolException(message='Required field type is unset!')
+        return
+
+    def __repr__(self):
+        L = ['%s=%r' % (key, value)
+             for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        return not (self == other)
+
+
+class DirEntryDiff(object):
+    """
+    Attributes:
+     - diff_type
+     - entry
+     - mtime
+     - name
+    """
+
+
+    def __init__(self, diff_type=None, entry=None, mtime=None, name=None,):
+        self.diff_type = diff_type
+        self.entry = entry
+        self.mtime = mtime
+        self.name = name
+
+    def read(self, iprot):
+        if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
+            iprot._fast_decode(self, iprot, [self.__class__, self.thrift_spec])
+            return
+        iprot.readStructBegin()
+        while True:
+            (fname, ftype, fid) = iprot.readFieldBegin()
+            if ftype == TType.STOP:
+                break
+            if fid == 1:
+                if ftype == TType.I32:
+                    self.diff_type = iprot.readI32()
+                else:
+                    iprot.skip(ftype)
+            elif fid == 2:
+                if ftype == TType.STRUCT:
+                    self.entry = DirEntry()
+                    self.entry.read(iprot)
+                else:
+                    iprot.skip(ftype)
+            elif fid == 3:
+                if ftype == TType.I64:
+                    self.mtime = iprot.readI64()
+                else:
+                    iprot.skip(ftype)
+            elif fid == 4:
+                if ftype == TType.STRING:
+                    self.name = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
+                else:
+                    iprot.skip(ftype)
+            else:
+                iprot.skip(ftype)
+            iprot.readFieldEnd()
+        iprot.readStructEnd()
+
+    def write(self, oprot):
+        if oprot._fast_encode is not None and self.thrift_spec is not None:
+            oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
+            return
+        oprot.writeStructBegin('DirEntryDiff')
+        if self.diff_type is not None:
+            oprot.writeFieldBegin('diff_type', TType.I32, 1)
+            oprot.writeI32(self.diff_type)
+            oprot.writeFieldEnd()
+        if self.entry is not None:
+            oprot.writeFieldBegin('entry', TType.STRUCT, 2)
+            self.entry.write(oprot)
+            oprot.writeFieldEnd()
+        if self.mtime is not None:
+            oprot.writeFieldBegin('mtime', TType.I64, 3)
+            oprot.writeI64(self.mtime)
+            oprot.writeFieldEnd()
+        if self.name is not None:
+            oprot.writeFieldBegin('name', TType.STRING, 4)
+            oprot.writeString(self.name.encode('utf-8') if sys.version_info[0] == 2 else self.name)
+            oprot.writeFieldEnd()
+        oprot.writeFieldStop()
+        oprot.writeStructEnd()
+
+    def validate(self):
+        if self.diff_type is None:
+            raise TProtocolException(message='Required field diff_type is unset!')
+        if self.entry is None:
+            raise TProtocolException(message='Required field entry is unset!')
+        if self.mtime is None:
+            raise TProtocolException(message='Required field mtime is unset!')
         if self.name is None:
             raise TProtocolException(message='Required field name is unset!')
         return
@@ -340,11 +533,13 @@ class DirData(object):
     """
     Attributes:
      - entries
+     - indirect
     """
 
 
-    def __init__(self, entries=None,):
+    def __init__(self, entries=None, indirect=None,):
         self.entries = entries
+        self.indirect = indirect
 
     def read(self, iprot):
         if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
@@ -358,13 +553,23 @@ class DirData(object):
             if fid == 1:
                 if ftype == TType.MAP:
                     self.entries = {}
-                    (_ktype8, _vtype9, _size7) = iprot.readMapBegin()
-                    for _i11 in range(_size7):
-                        _key12 = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
-                        _val13 = DirEntry()
-                        _val13.read(iprot)
-                        self.entries[_key12] = _val13
+                    (_ktype22, _vtype23, _size21) = iprot.readMapBegin()
+                    for _i25 in range(_size21):
+                        _key26 = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
+                        _val27 = DirEntry()
+                        _val27.read(iprot)
+                        self.entries[_key26] = _val27
                     iprot.readMapEnd()
+                else:
+                    iprot.skip(ftype)
+            elif fid == 2:
+                if ftype == TType.LIST:
+                    self.indirect = []
+                    (_etype31, _size28) = iprot.readListBegin()
+                    for _i32 in range(_size28):
+                        _elem33 = iprot.readBinary()
+                        self.indirect.append(_elem33)
+                    iprot.readListEnd()
                 else:
                     iprot.skip(ftype)
             else:
@@ -380,10 +585,95 @@ class DirData(object):
         if self.entries is not None:
             oprot.writeFieldBegin('entries', TType.MAP, 1)
             oprot.writeMapBegin(TType.STRING, TType.STRUCT, len(self.entries))
-            for kiter14, viter15 in self.entries.items():
-                oprot.writeString(kiter14.encode('utf-8') if sys.version_info[0] == 2 else kiter14)
-                viter15.write(oprot)
+            for kiter34, viter35 in self.entries.items():
+                oprot.writeString(kiter34.encode('utf-8') if sys.version_info[0] == 2 else kiter34)
+                viter35.write(oprot)
             oprot.writeMapEnd()
+            oprot.writeFieldEnd()
+        if self.indirect is not None:
+            oprot.writeFieldBegin('indirect', TType.LIST, 2)
+            oprot.writeListBegin(TType.STRING, len(self.indirect))
+            for iter36 in self.indirect:
+                oprot.writeBinary(iter36)
+            oprot.writeListEnd()
+            oprot.writeFieldEnd()
+        oprot.writeFieldStop()
+        oprot.writeStructEnd()
+
+    def validate(self):
+        return
+
+    def __repr__(self):
+        L = ['%s=%r' % (key, value)
+             for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        return not (self == other)
+
+
+class DirDataIndirect(object):
+    """
+    Attributes:
+     - entries
+     - valid
+    """
+
+
+    def __init__(self, entries=None, valid=True,):
+        self.entries = entries
+        self.valid = valid
+
+    def read(self, iprot):
+        if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
+            iprot._fast_decode(self, iprot, [self.__class__, self.thrift_spec])
+            return
+        iprot.readStructBegin()
+        while True:
+            (fname, ftype, fid) = iprot.readFieldBegin()
+            if ftype == TType.STOP:
+                break
+            if fid == 1:
+                if ftype == TType.MAP:
+                    self.entries = {}
+                    (_ktype38, _vtype39, _size37) = iprot.readMapBegin()
+                    for _i41 in range(_size37):
+                        _key42 = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
+                        _val43 = DirEntry()
+                        _val43.read(iprot)
+                        self.entries[_key42] = _val43
+                    iprot.readMapEnd()
+                else:
+                    iprot.skip(ftype)
+            elif fid == 2:
+                if ftype == TType.BOOL:
+                    self.valid = iprot.readBool()
+                else:
+                    iprot.skip(ftype)
+            else:
+                iprot.skip(ftype)
+            iprot.readFieldEnd()
+        iprot.readStructEnd()
+
+    def write(self, oprot):
+        if oprot._fast_encode is not None and self.thrift_spec is not None:
+            oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
+            return
+        oprot.writeStructBegin('DirDataIndirect')
+        if self.entries is not None:
+            oprot.writeFieldBegin('entries', TType.MAP, 1)
+            oprot.writeMapBegin(TType.STRING, TType.STRUCT, len(self.entries))
+            for kiter44, viter45 in self.entries.items():
+                oprot.writeString(kiter44.encode('utf-8') if sys.version_info[0] == 2 else kiter44)
+                viter45.write(oprot)
+            oprot.writeMapEnd()
+            oprot.writeFieldEnd()
+        if self.valid is not None:
+            oprot.writeFieldBegin('valid', TType.BOOL, 2)
+            oprot.writeBool(self.valid)
             oprot.writeFieldEnd()
         oprot.writeFieldStop()
         oprot.writeStructEnd()
@@ -619,18 +909,39 @@ FileData.thrift_spec = (
     None,  # 0
     (1, TType.I64, 'size', None, None, ),  # 1
     (2, TType.LIST, 'blocks', (TType.STRING, 'BINARY', False), None, ),  # 2
+    (3, TType.LIST, 'indirect', (TType.STRING, 'BINARY', False), None, ),  # 3
+)
+all_structs.append(FileDataIndirect)
+FileDataIndirect.thrift_spec = (
+    None,  # 0
+    (1, TType.LIST, 'blocks', (TType.STRING, 'BINARY', False), None, ),  # 1
+    (2, TType.BOOL, 'valid', None, True, ),  # 2
 )
 all_structs.append(DirEntry)
 DirEntry.thrift_spec = (
     None,  # 0
     (1, TType.I64, 'inumber', None, None, ),  # 1
     (2, TType.I32, 'type', None, None, ),  # 2
-    (3, TType.STRING, 'name', 'UTF8', None, ),  # 3
+)
+all_structs.append(DirEntryDiff)
+DirEntryDiff.thrift_spec = (
+    None,  # 0
+    (1, TType.I32, 'diff_type', None, None, ),  # 1
+    (2, TType.STRUCT, 'entry', [DirEntry, None], None, ),  # 2
+    (3, TType.I64, 'mtime', None, None, ),  # 3
+    (4, TType.STRING, 'name', 'UTF8', None, ),  # 4
 )
 all_structs.append(DirData)
 DirData.thrift_spec = (
     None,  # 0
     (1, TType.MAP, 'entries', (TType.STRING, 'UTF8', TType.STRUCT, [DirEntry, None], False), None, ),  # 1
+    (2, TType.LIST, 'indirect', (TType.STRING, 'BINARY', False), None, ),  # 2
+)
+all_structs.append(DirDataIndirect)
+DirDataIndirect.thrift_spec = (
+    None,  # 0
+    (1, TType.MAP, 'entries', (TType.STRING, 'UTF8', TType.STRUCT, [DirEntry, None], False), None, ),  # 1
+    (2, TType.BOOL, 'valid', None, True, ),  # 2
 )
 all_structs.append(SymLinkData)
 SymLinkData.thrift_spec = (
