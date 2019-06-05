@@ -8,10 +8,11 @@ pylint = "*"
 autopep8 = "*"
 
 [packages]
+dhtfs = {editable = true,path = "."}
 kademlia = "*"
 thrift = "*"
 plyvel = "*"
 appdirs = "*"
-dhtfs-peer = {editable = true,path = "."}
 python-dateutil = "*"
-dhtfs = {editable = true,path = "."}
+redis = "*"
+daemonize = "*"
