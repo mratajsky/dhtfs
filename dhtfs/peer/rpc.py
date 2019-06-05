@@ -31,13 +31,13 @@ class Handler:
         self._condition = condition
 
     def FindClosestPeers(self, key):
-        logger.debug(f"RPC: FindClosestPeers({key.hex()})")
+        logger.info(f"RPC: FindClosestPeers({key.hex()})")
         return self._find_closest_peers(key)
 
     def FindKey(self, ident, search_key):
-        logger.debug(f"RPC: FindKey({ident}, {search_key})")
+        logger.info(f"RPC: FindKey({ident}, {search_key})")
         key = self._lookup(ident, search_key)
-        logger.debug(f'Key: {key}')
+        logger.debug(f'Found key: {key}')
         return digest(key)
 
 

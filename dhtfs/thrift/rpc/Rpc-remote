@@ -25,14 +25,13 @@ if len(sys.argv) <= 1 or sys.argv[1] == '--help':
     print('')
     print('Functions:')
     print('   FindClosestPeers(string key)')
+    print('  string FindKey(string ident, i64 search_key)')
+    print('  BucketKeys GetBucketKeys(string key)')
     print('  void Put(string key, string value)')
     print('  void Add(string key, BucketValue value, string name, i64 search_key_min, i64 search_key_max)')
     print('  string Get(string key)')
-    print('  BucketValue GetLatest(string name)')
-    print('  BucketValue GetLatestMax(string name, i64 search_key_max)')
+    print('  BucketValue GetLatestMax(string key, i64 search_key_max)')
     print('   GetRange(string name, i64 search_key_min, i64 search_key_max)')
-    print('  string FindKey(string ident, i64 search_key)')
-    print('  BucketKeys GetBucketKeys(string key)')
     print('')
     sys.exit(0)
 
@@ -118,6 +117,18 @@ if cmd == 'FindClosestPeers':
         sys.exit(1)
     pp.pprint(client.FindClosestPeers(args[0],))
 
+elif cmd == 'FindKey':
+    if len(args) != 2:
+        print('FindKey requires 2 args')
+        sys.exit(1)
+    pp.pprint(client.FindKey(args[0], eval(args[1]),))
+
+elif cmd == 'GetBucketKeys':
+    if len(args) != 1:
+        print('GetBucketKeys requires 1 args')
+        sys.exit(1)
+    pp.pprint(client.GetBucketKeys(args[0],))
+
 elif cmd == 'Put':
     if len(args) != 2:
         print('Put requires 2 args')
@@ -136,12 +147,6 @@ elif cmd == 'Get':
         sys.exit(1)
     pp.pprint(client.Get(args[0],))
 
-elif cmd == 'GetLatest':
-    if len(args) != 1:
-        print('GetLatest requires 1 args')
-        sys.exit(1)
-    pp.pprint(client.GetLatest(args[0],))
-
 elif cmd == 'GetLatestMax':
     if len(args) != 2:
         print('GetLatestMax requires 2 args')
@@ -153,18 +158,6 @@ elif cmd == 'GetRange':
         print('GetRange requires 3 args')
         sys.exit(1)
     pp.pprint(client.GetRange(args[0], eval(args[1]), eval(args[2]),))
-
-elif cmd == 'FindKey':
-    if len(args) != 2:
-        print('FindKey requires 2 args')
-        sys.exit(1)
-    pp.pprint(client.FindKey(args[0], eval(args[1]),))
-
-elif cmd == 'GetBucketKeys':
-    if len(args) != 1:
-        print('GetBucketKeys requires 1 args')
-        sys.exit(1)
-    pp.pprint(client.GetBucketKeys(args[0],))
 
 else:
     print('Unrecognized method %s' % cmd)

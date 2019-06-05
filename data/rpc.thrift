@@ -30,29 +30,30 @@ service Rpc {
 	// Retrieve a list of peers closest to the given key
 	list<Peer> FindClosestPeers(1: binary key),
 
+	// Find DHT key for storing an entry with the given search key
+	binary FindKey(1: string ident, 2: i64 search_key)
+		throws (1: StorageException err)
+
+	// Find search key bounds for the given DHT key
+	BucketKeys GetBucketKeys(1: binary key)
+		throws (1: StorageException err)
+
 	// Store value under the given key
 	void Put(1: binary key, 2: binary value),
 	// Add value to a leaf bucket identified by the given key
-	void Add(1: binary key, 2: BucketValue value, 3: string name, 4: i64 search_key_min,
-		5: i64 search_key_max) throws (1: StorageException err)
+	void Add(1: binary key, 2: BucketValue value, 3: string name,
+		4: i64 search_key_min, 5: i64 search_key_max)
+		throws (1: StorageException err)
 
 	// Get value under the given key
 	binary Get(1: binary key) throws (1: StorageException err),
 
-	// Get value from a leaf bucket with the largest search key
-	BucketValue GetLatest(1: string name) throws (1: StorageException err),
 	// Get value from a leaf bucket with the largest search key, but where
 	// the key doesn't exceed to given maximum
-	BucketValue GetLatestMax(1: string name, 2: i64 search_key_max)
+	BucketValue GetLatestMax(1: binary key, 2: i64 search_key_max)
 		throws (1: StorageException err),
 
 	// Get values from a leaf bucket in the inclusive search range
 	list<BucketValue> GetRange(1: string name, 2: i64 search_key_min,
 		3: i64 search_key_max),
-
-	binary FindKey(1: string ident, 2: i64 search_key)
-		throws (1: StorageException err)
-
-	BucketKeys GetBucketKeys(1: binary key)
-		throws (1: StorageException err)
 }
