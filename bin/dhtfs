@@ -38,9 +38,9 @@ def parse_args():
     cparser.add_argument('-b', '--block-size', type=int,
                          help=f'block size in bytes (default: {defaults.block_size})')
     cparser.add_argument('-m', '--model', type=int,
-                         help=f'model to use (default: {defaults.model})')
+                         help=f'model to use (0-2, default: {defaults.model})')
     cparser.add_argument('-r', '--root', type=int,
-                         help=f'root inode number (default: random)')
+                         help='root inode number (default: random)')
     cparser.set_defaults(name=defaults.name,
                          block_size=defaults.block_size,
                          model=defaults.model)
@@ -53,21 +53,34 @@ def parse_args():
                          help=f'file system name (default: {defaults.name})')
     cparser.add_argument('-a', '--at', type=dateutil_parse,
                          help='date and time of the file system snapshot')
+    cparser.add_argument('-b', '--benchmark', action='store_true',
+                         help='enable benchmarking')
     cparser.add_argument('-c', '--cache', type=str,
                          help='path to the caching storage')
     cparser.add_argument('-d', '--debug', action='store_true',
                          help='enable debugging in dhtfs-fuse')
     cparser.add_argument('-e', '--exec', type=str,
                          help='custom path to the dhtfs-fuse executable')
+    cparser.add_argument('-s', '--snapshot-period', type=int,
+                         help='interval in seconds for periodic snapshotting')
     cparser.set_defaults(name=defaults.name)
+
+    # Umount command
+    cparser = commands.add_parser('umount')
+    cparser.add_argument('mountpoint', type=str,
+                         help='file system mounting point')
 
     # DHT commands
     cparser = commands.add_parser('get-key')
     cparser.add_argument('key', type=str, help='DHT key string to lookup')
+    cparser.add_argument('-b', '--bucket', action='store_true',
+                         help='parse value as a bucket')
     cparser.set_defaults(command='dht-get', get='key', hash=False)
 
     cparser = commands.add_parser('get-key-hash')
     cparser.add_argument('key', type=str, help='DHT key hash to lookup')
+    cparser.add_argument('-b', '--bucket', action='store_true',
+                         help='parse value as a bucket')
     cparser.set_defaults(command='dht-get', get='key', hash=True)
 
     cparser = commands.add_parser('get-filesystem')
@@ -80,12 +93,17 @@ def parse_args():
     cparser.add_argument('inumber', type=str, help='inode number')
     cparser.add_argument('name', type=str, nargs='?',
                          help=f'file system name (default: {defaults.name})')
-    cparser.add_argument('-l', '--latest', action='store_true',
-                         help='retrieve inode with the latest timestamp')
     cparser.add_argument('-m', '--max-key', type=int,
                          help='upper bound on the latest timestamp (for -l)')
     cparser.set_defaults(name=defaults.name,
                          command='dht-get', get='inode')
+
+    cparser = commands.add_parser('get-inode-indirect')
+    cparser.add_argument('inumber', type=str, help='inode number')
+    cparser.add_argument('name', type=str, nargs='?',
+                         help=f'file system name (default: {defaults.name})')
+    cparser.set_defaults(name=defaults.name,
+                         command='dht-get', get='inode-indirect')
 
     cparser = commands.add_parser('get-inode-range')
     cparser.add_argument('inumber', type=str, help='inode number')
@@ -95,9 +113,6 @@ def parse_args():
                          help=f'file system name (default: {defaults.name})')
     cparser.set_defaults(name=defaults.name,
                          command='dht-get', get='inode-range')
-
-    # Indexing test
-    cparser = commands.add_parser('index')
 
     return parser.parse_args()
 
@@ -112,12 +127,17 @@ def get_filesystem(host, port, name):
     return create_client(host, port).get_filesystem(name)
 
 
-def get_inode(host, port, inumber, fs_name, latest=False, max_key=None):
+def get_inode(host, port, inumber, fs_name, max_key=None):
     client = create_client(host, port)
-    if latest:
+    if max_key:
         return client.get_inode_latest(fs_name, inumber, max_key)
     else:
         return client.get_inode(fs_name, inumber)
+
+
+def get_inode_indirect(host, port, inumber, fs_name):
+    client = create_client(host, port)
+    return client.get_inode_indirect(fs_name, inumber)
 
 
 def get_inode_range(host, port, inumber, fs_name, min_key, max_key):
@@ -148,10 +168,14 @@ def mount(args):
         '-o', f'port={args.port}',
         '-o', f'name={args.name}',
     ]
+    if args.benchmark:
+        fuse_args.extend(['-b'])
     if args.cache is not None:
         fuse_args.extend(['-o', f'cache={args.cache}'])
     if args.at is not None:
         fuse_args.extend(['-o', f'snapshot={int(args.at.timestamp())}'])
+    if args.snapshot_period is not None:
+        fuse_args.extend(['-o', f'snapshot_period={args.snapshot_period}'])
     env = os.environ.copy()
     if args.debug:
         fuse_args.append('-d')
@@ -166,10 +190,9 @@ def mount(args):
     os.execve(executable, fuse_args, env)
 
 
-def index(args):
-    client = create_client(args.host, args.port)
-    
-    print("say howdy")
+def umount(mountpoint):
+    # Nothing too fancy here
+    os.system(f'fusermount -u {mountpoint}')
 
 
 def run():
@@ -182,17 +205,24 @@ def run():
             inumber = args.root
         else:
             inumber = random.getrandbits(63)
+        if args.model < 0 or args.model > 2:
+            print('Model must be an integer 0, 1 or 2')
+            return
         client = create_client(args.host, args.port)
         client.put_filesystem(args.name, args.model, args.block_size, inumber)
         print(f'Created file system "{args.name}"')
     elif args.command == 'mount':
         mount(args)
+    elif args.command == 'umount':
+        umount(args.mountpoint)
     elif args.command == 'dht-get':
         if args.get == 'filesystem':
             value = get_filesystem(args.host, args.port, args.name)
         elif args.get == 'inode':
             value = get_inode(args.host, args.port, args.inumber, args.name,
-                              args.latest, args.max_key)
+                              args.max_key)
+        elif args.get == 'inode-indirect':
+            value = get_inode_indirect(args.host, args.port, args.inumber, args.name)
         elif args.get == 'inode-range':
             value = get_inode_range(args.host, args.port, args.inumber, args.name,
                                     args.min, args.max)
@@ -204,17 +234,17 @@ def run():
                 logging.info(f'DHT key: {args.key} -> {kd.hex()}')
 
             value = get_value_digest(args.host, args.port, kd)
-            try:
-                value = thrift_unserialize(value, Bucket())
-            except:
-                print("not a bucket") 
+            if args.bucket:
+                try:
+                    bucket_value = thrift_unserialize(value, Bucket())
+                    value = bucket_value
+                except:
+                    print("Value is not a bucket")
 
         if value is not None:
             print(value)
         else:
             print('Value not found')
-    elif args.command == 'index':
-        index(args)
 
 
 if __name__ == '__main__':
