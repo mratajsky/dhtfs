@@ -173,7 +173,7 @@ def mount(args):
     if args.cache is not None:
         fuse_args.extend(['-o', f'cache={args.cache}'])
     if args.at is not None:
-        fuse_args.extend(['-o', f'snapshot={int(args.at.timestamp())}'])
+        fuse_args.extend(['-o', f'snapshot={int(args.at.timestamp()) * 1000}'])
     if args.snapshot_period is not None:
         fuse_args.extend(['-o', f'snapshot_period={args.snapshot_period}'])
     env = os.environ.copy()
