@@ -28,9 +28,10 @@ if len(sys.argv) <= 1 or sys.argv[1] == '--help':
     print('  string FindKey(string ident, i64 search_key)')
     print('  BucketKeys GetBucketKeys(string key)')
     print('  void Put(string key, string value)')
+    print('  void PutLatest(string key, i64 search_key, string value)')
     print('  void Add(string key, BucketValue value, string name, i64 search_key_min, i64 search_key_max)')
     print('  string Get(string key)')
-    print('  BucketValue GetLatestMax(string key, i64 search_key_max)')
+    print('  BucketValue GetLatestMax(string name, i64 search_key_max)')
     print('   GetRange(string name, i64 search_key_min, i64 search_key_max)')
     print('')
     sys.exit(0)
@@ -134,6 +135,12 @@ elif cmd == 'Put':
         print('Put requires 2 args')
         sys.exit(1)
     pp.pprint(client.Put(args[0], args[1],))
+
+elif cmd == 'PutLatest':
+    if len(args) != 3:
+        print('PutLatest requires 3 args')
+        sys.exit(1)
+    pp.pprint(client.PutLatest(args[0], eval(args[1]), args[2],))
 
 elif cmd == 'Add':
     if len(args) != 5:

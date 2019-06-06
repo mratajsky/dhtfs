@@ -49,6 +49,15 @@ class Iface(object):
         """
         pass
 
+    def PutLatest(self, key, search_key, value):
+        """
+        Parameters:
+         - key
+         - search_key
+         - value
+        """
+        pass
+
     def Add(self, key, value, name, search_key_min, search_key_max):
         """
         Parameters:
@@ -67,10 +76,10 @@ class Iface(object):
         """
         pass
 
-    def GetLatestMax(self, key, search_key_max):
+    def GetLatestMax(self, name, search_key_max):
         """
         Parameters:
-         - key
+         - name
          - search_key_max
         """
         pass
@@ -222,6 +231,39 @@ class Client(Iface):
         iprot.readMessageEnd()
         return
 
+    def PutLatest(self, key, search_key, value):
+        """
+        Parameters:
+         - key
+         - search_key
+         - value
+        """
+        self.send_PutLatest(key, search_key, value)
+        self.recv_PutLatest()
+
+    def send_PutLatest(self, key, search_key, value):
+        self._oprot.writeMessageBegin('PutLatest', TMessageType.CALL, self._seqid)
+        args = PutLatest_args()
+        args.key = key
+        args.search_key = search_key
+        args.value = value
+        args.write(self._oprot)
+        self._oprot.writeMessageEnd()
+        self._oprot.trans.flush()
+
+    def recv_PutLatest(self):
+        iprot = self._iprot
+        (fname, mtype, rseqid) = iprot.readMessageBegin()
+        if mtype == TMessageType.EXCEPTION:
+            x = TApplicationException()
+            x.read(iprot)
+            iprot.readMessageEnd()
+            raise x
+        result = PutLatest_result()
+        result.read(iprot)
+        iprot.readMessageEnd()
+        return
+
     def Add(self, key, value, name, search_key_min, search_key_max):
         """
         Parameters:
@@ -294,19 +336,19 @@ class Client(Iface):
             raise result.err
         raise TApplicationException(TApplicationException.MISSING_RESULT, "Get failed: unknown result")
 
-    def GetLatestMax(self, key, search_key_max):
+    def GetLatestMax(self, name, search_key_max):
         """
         Parameters:
-         - key
+         - name
          - search_key_max
         """
-        self.send_GetLatestMax(key, search_key_max)
+        self.send_GetLatestMax(name, search_key_max)
         return self.recv_GetLatestMax()
 
-    def send_GetLatestMax(self, key, search_key_max):
+    def send_GetLatestMax(self, name, search_key_max):
         self._oprot.writeMessageBegin('GetLatestMax', TMessageType.CALL, self._seqid)
         args = GetLatestMax_args()
-        args.key = key
+        args.name = name
         args.search_key_max = search_key_max
         args.write(self._oprot)
         self._oprot.writeMessageEnd()
@@ -373,6 +415,7 @@ class Processor(Iface, TProcessor):
         self._processMap["FindKey"] = Processor.process_FindKey
         self._processMap["GetBucketKeys"] = Processor.process_GetBucketKeys
         self._processMap["Put"] = Processor.process_Put
+        self._processMap["PutLatest"] = Processor.process_PutLatest
         self._processMap["Add"] = Processor.process_Add
         self._processMap["Get"] = Processor.process_Get
         self._processMap["GetLatestMax"] = Processor.process_GetLatestMax
@@ -491,6 +534,29 @@ class Processor(Iface, TProcessor):
         oprot.writeMessageEnd()
         oprot.trans.flush()
 
+    def process_PutLatest(self, seqid, iprot, oprot):
+        args = PutLatest_args()
+        args.read(iprot)
+        iprot.readMessageEnd()
+        result = PutLatest_result()
+        try:
+            self._handler.PutLatest(args.key, args.search_key, args.value)
+            msg_type = TMessageType.REPLY
+        except TTransport.TTransportException:
+            raise
+        except TApplicationException as ex:
+            logging.exception('TApplication exception in handler')
+            msg_type = TMessageType.EXCEPTION
+            result = ex
+        except Exception:
+            logging.exception('Unexpected exception in handler')
+            msg_type = TMessageType.EXCEPTION
+            result = TApplicationException(TApplicationException.INTERNAL_ERROR, 'Internal error')
+        oprot.writeMessageBegin("PutLatest", msg_type, seqid)
+        result.write(oprot)
+        oprot.writeMessageEnd()
+        oprot.trans.flush()
+
     def process_Add(self, seqid, iprot, oprot):
         args = Add_args()
         args.read(iprot)
@@ -549,7 +615,7 @@ class Processor(Iface, TProcessor):
         iprot.readMessageEnd()
         result = GetLatestMax_result()
         try:
-            result.success = self._handler.GetLatestMax(args.key, args.search_key_max)
+            result.success = self._handler.GetLatestMax(args.name, args.search_key_max)
             msg_type = TMessageType.REPLY
         except TTransport.TTransportException:
             raise
@@ -1122,6 +1188,134 @@ Put_result.thrift_spec = (
 )
 
 
+class PutLatest_args(object):
+    """
+    Attributes:
+     - key
+     - search_key
+     - value
+    """
+
+
+    def __init__(self, key=None, search_key=None, value=None,):
+        self.key = key
+        self.search_key = search_key
+        self.value = value
+
+    def read(self, iprot):
+        if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
+            iprot._fast_decode(self, iprot, [self.__class__, self.thrift_spec])
+            return
+        iprot.readStructBegin()
+        while True:
+            (fname, ftype, fid) = iprot.readFieldBegin()
+            if ftype == TType.STOP:
+                break
+            if fid == 1:
+                if ftype == TType.STRING:
+                    self.key = iprot.readBinary()
+                else:
+                    iprot.skip(ftype)
+            elif fid == 2:
+                if ftype == TType.I64:
+                    self.search_key = iprot.readI64()
+                else:
+                    iprot.skip(ftype)
+            elif fid == 3:
+                if ftype == TType.STRING:
+                    self.value = iprot.readBinary()
+                else:
+                    iprot.skip(ftype)
+            else:
+                iprot.skip(ftype)
+            iprot.readFieldEnd()
+        iprot.readStructEnd()
+
+    def write(self, oprot):
+        if oprot._fast_encode is not None and self.thrift_spec is not None:
+            oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
+            return
+        oprot.writeStructBegin('PutLatest_args')
+        if self.key is not None:
+            oprot.writeFieldBegin('key', TType.STRING, 1)
+            oprot.writeBinary(self.key)
+            oprot.writeFieldEnd()
+        if self.search_key is not None:
+            oprot.writeFieldBegin('search_key', TType.I64, 2)
+            oprot.writeI64(self.search_key)
+            oprot.writeFieldEnd()
+        if self.value is not None:
+            oprot.writeFieldBegin('value', TType.STRING, 3)
+            oprot.writeBinary(self.value)
+            oprot.writeFieldEnd()
+        oprot.writeFieldStop()
+        oprot.writeStructEnd()
+
+    def validate(self):
+        return
+
+    def __repr__(self):
+        L = ['%s=%r' % (key, value)
+             for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        return not (self == other)
+all_structs.append(PutLatest_args)
+PutLatest_args.thrift_spec = (
+    None,  # 0
+    (1, TType.STRING, 'key', 'BINARY', None, ),  # 1
+    (2, TType.I64, 'search_key', None, None, ),  # 2
+    (3, TType.STRING, 'value', 'BINARY', None, ),  # 3
+)
+
+
+class PutLatest_result(object):
+
+
+    def read(self, iprot):
+        if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
+            iprot._fast_decode(self, iprot, [self.__class__, self.thrift_spec])
+            return
+        iprot.readStructBegin()
+        while True:
+            (fname, ftype, fid) = iprot.readFieldBegin()
+            if ftype == TType.STOP:
+                break
+            else:
+                iprot.skip(ftype)
+            iprot.readFieldEnd()
+        iprot.readStructEnd()
+
+    def write(self, oprot):
+        if oprot._fast_encode is not None and self.thrift_spec is not None:
+            oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
+            return
+        oprot.writeStructBegin('PutLatest_result')
+        oprot.writeFieldStop()
+        oprot.writeStructEnd()
+
+    def validate(self):
+        return
+
+    def __repr__(self):
+        L = ['%s=%r' % (key, value)
+             for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        return not (self == other)
+all_structs.append(PutLatest_result)
+PutLatest_result.thrift_spec = (
+)
+
+
 class Add_args(object):
     """
     Attributes:
@@ -1431,13 +1625,13 @@ Get_result.thrift_spec = (
 class GetLatestMax_args(object):
     """
     Attributes:
-     - key
+     - name
      - search_key_max
     """
 
 
-    def __init__(self, key=None, search_key_max=None,):
-        self.key = key
+    def __init__(self, name=None, search_key_max=None,):
+        self.name = name
         self.search_key_max = search_key_max
 
     def read(self, iprot):
@@ -1451,7 +1645,7 @@ class GetLatestMax_args(object):
                 break
             if fid == 1:
                 if ftype == TType.STRING:
-                    self.key = iprot.readBinary()
+                    self.name = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
                 else:
                     iprot.skip(ftype)
             elif fid == 2:
@@ -1469,9 +1663,9 @@ class GetLatestMax_args(object):
             oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
             return
         oprot.writeStructBegin('GetLatestMax_args')
-        if self.key is not None:
-            oprot.writeFieldBegin('key', TType.STRING, 1)
-            oprot.writeBinary(self.key)
+        if self.name is not None:
+            oprot.writeFieldBegin('name', TType.STRING, 1)
+            oprot.writeString(self.name.encode('utf-8') if sys.version_info[0] == 2 else self.name)
             oprot.writeFieldEnd()
         if self.search_key_max is not None:
             oprot.writeFieldBegin('search_key_max', TType.I64, 2)
@@ -1496,7 +1690,7 @@ class GetLatestMax_args(object):
 all_structs.append(GetLatestMax_args)
 GetLatestMax_args.thrift_spec = (
     None,  # 0
-    (1, TType.STRING, 'key', 'BINARY', None, ),  # 1
+    (1, TType.STRING, 'name', 'UTF8', None, ),  # 1
     (2, TType.I64, 'search_key_max', None, None, ),  # 2
 )
 

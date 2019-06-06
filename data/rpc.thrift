@@ -40,6 +40,8 @@ service Rpc {
 
 	// Store value under the given key
 	void Put(1: binary key, 2: binary value),
+	void PutLatest(1: binary key, 2: i64 search_key, 3: binary value),
+
 	// Add value to a leaf bucket identified by the given key
 	void Add(1: binary key, 2: BucketValue value, 3: string name,
 		4: i64 search_key_min, 5: i64 search_key_max)
@@ -50,7 +52,7 @@ service Rpc {
 
 	// Get value from a leaf bucket with the largest search key, but where
 	// the key doesn't exceed to given maximum
-	BucketValue GetLatestMax(1: binary key, 2: i64 search_key_max)
+	BucketValue GetLatestMax(1: string name, 2: i64 search_key_max)
 		throws (1: StorageException err),
 
 	// Get values from a leaf bucket in the inclusive search range
