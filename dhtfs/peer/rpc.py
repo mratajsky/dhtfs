@@ -66,13 +66,12 @@ class Handler:
         upper_bound = DEFAULT_TREE_DEPTH + 1
         label = float_to_bin_no_dot(search_key_to_interval(search_key))
 
-        while( upper_bound >= lower_bound):
+        while upper_bound >= lower_bound:
             mid_point = (lower_bound + upper_bound) // 2
             prefix = label[0:mid_point]
             dht_key = naming_func(f'{ident}:{prefix}')
 
             bucket_keys = self._find_search_keys(digest(dht_key))
-           
             if bucket_keys is None:
                 if upper_bound == len(prefix):
                     break
@@ -105,54 +104,42 @@ class Handler:
             else:
                 bucketRight.values.append(x) 
 
-
         label = get_label(bucket.search_key_min, bucket.search_key_max)
   
         dht_key = digest(f'{name}:{label}')
         peers = self._find_closest_peers(dht_key)
-        print(f'LOOKUP {name}:{label} -> {peers}')
   
-        # print(f'============== LEN: {len(peers)}')
         indx =random.randint(0,len(peers)-1)
-        # indx = 0  #random.randint(0,len(peers)-1)
-        # print(f'====INDX {indx}')
-        # print(f'====RAND {random.randint(0,len(peers)-1)}')
         client = Client(peers[indx].host, peers[indx].port)
 
         if label[-1] == '0':
             if len(bucketLeft.values) > DEFAULT_BUCKET_SIZE:
                 client.connect()
-                print(f'======= putting {bucketRight.search_key_min} {bucketRight.search_key_max} on {peers[indx].port}')
                 client.Put(dht_key, thrift_serialize(bucketRight))
                 client.disconnect()
                 return self.bucketSplitter(bucketLeft, name)
             if len(bucketRight.values) > DEFAULT_BUCKET_SIZE:
                 buck = thrift_serialize(self.bucketSplitter(bucketRight,name))
                 client.connect()
-                print(f'======= putting {bucketRight.search_key_min} {bucketRight.search_key_max} on {peers[indx].port}')
                 client.Put(dht_key, buck)
                 return bucketLeft
 
             client.connect()
-            print(f'======= putting {bucketRight.search_key_min} {bucketRight.search_key_max} on {peers[indx].port}')
             client.Put(dht_key, thrift_serialize(bucketRight))
 
             return bucketLeft
         else:
             if len(bucketRight.values) > DEFAULT_BUCKET_SIZE:
                 client.connect()
-                print(f'======= putting {bucketLeft.search_key_min} {bucketLeft.search_key_max} on {peers[indx].port}')
                 client.Put(dht_key, thrift_serialize(bucketLeft))
                 client.disconnect()
                 return self.bucketSplitter(bucketRight,name)
             if len(bucketLeft.values) > DEFAULT_BUCKET_SIZE:
                 buck = thrift_serialize(self.bucketSplitter(bucketLeft,name))
                 client.connect()
-                print(f'======= putting {bucketLeft.search_key_min} {bucketLeft.search_key_max} on {peers[indx].port}')
                 client.Put(dht_key, buck)
                 return bucketRight
             client.connect()
-            print(f'======= putting {bucketLeft.search_key_min} {bucketLeft.search_key_max} on {peers[indx].port}')
             client.Put(dht_key, thrift_serialize(bucketLeft))
             return bucketRight
 
@@ -194,10 +181,6 @@ class Handler:
             # get() returns None when key is not in the database
             raise StorageException(404, 'Key not found')
         return value
-
-    def GetLatest(self, name):
-        logger.debug(f"RPC: GetLatest({key.hex()})")
-        return self._get_nonempty_bucket(key).values[-1]
 
     def LatestMaxRecursiveBackwards(self, bucket, name):
         label = get_label(bucket.search_key_min, bucket.search_key_max)
@@ -242,7 +225,6 @@ class Handler:
             print("LATEST MAX: MISSING BUCKET!!")
             return
 
-
     def GetLatestMax(self, name, search_key_max):
         label = self._lookup(name, search_key_max)
         print(f'Lates Max  key: {name}   Range label:  {label}')
@@ -256,7 +238,6 @@ class Handler:
                 print(f'Get Latest Max on {peer.host}:{peer.port}')
                 bucket = client.Get(dht_key)
                 if bucket is not None:
-                    # print('Here!')
                     bucket = thrift_unserialize(bucket, Bucket())      
             except StorageException:
                 pass
@@ -270,7 +251,6 @@ class Handler:
         return self.LatestMaxRecursiveBackwards(bucket, name)
 
     def RangeRecursiveForward(self, bucket, name, search_key_min, search_key_max):
-        # print(f'Range: {search_key_min},  {search_key_max},    Bucket: {bucket.search_key_min}  {bucket.search_key_max}')
         label = get_label(bucket.search_key_min, bucket.search_key_max)
         result = []
         for item in bucket.values:
@@ -285,24 +265,18 @@ class Handler:
         while True:
             if leftwards:
                 bLabel = get_left_neighbour(label)
-                # print(f'Left neighbour: {bLabel}')
             else:
                 bLabel = get_right_neighbour(label)
-                # print(f'Right neighbour: {bLabel}')
             
             if label == bLabel: # Stopping condition
                 return result
             else:
-                print(f'bLabel == {bLabel}, label == {label}')
                 label = bLabel
 
             inteval = get_label_range(bLabel)
-            # print(f'Interv: {inteval[0]} , {inteval[1]}')
             if inteval[0] > search_key_max or inteval[1] <= search_key_min:  # intersection is NULL, stop recursion & iteration
-                # print('1:Intersection null')
                 return result
             elif inteval[0] >= search_key_min and  inteval[1] - 1 <=  search_key_max:   # Range totaly covers the interval, recurse down, then iterate left/right
-                # print('2:interval in Range')
                 dht_key = digest(f'{name}:{naming_func(bLabel)}')
                 peers = self.FindClosestPeers(dht_key)
                 nextBucket = None
@@ -320,7 +294,6 @@ class Handler:
                 else:
                     result = result + self.RangeRecursiveForward(nextBucket,name,inteval[0],inteval[1]-1)
             else:   #range partially covers , recurse down, stop iterating
-                # print('3:Range partially cover')
                 dht_key = digest(f'{name}:{bLabel}')
                 peers = self.FindClosestPeers(dht_key)
                 nextBucket = None
@@ -350,7 +323,6 @@ class Handler:
 
     def GetRange(self, name, search_key_min, search_key_max): 
         label = self._lookup(name, search_key_min)
-        print(f'key: {name}   Range label:  {label}')
         dht_key = digest(label)
         closest = self._find_closest_peers(dht_key)
         bucket = None
@@ -361,7 +333,6 @@ class Handler:
                 print(f'GetRange on {peer.host}:{peer.port}')
                 bucket = client.Get(dht_key)
                 if bucket is not None:
-                    # print('Here!')
                     bucket = thrift_unserialize(bucket, Bucket())      
             except StorageException:
                 pass
