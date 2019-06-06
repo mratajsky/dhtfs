@@ -27,6 +27,7 @@ class Handler:
         self._dht_pipe = pipe
         self._bucket_locks = {}
         self._bucket_lock_global = threading.Lock()
+        self._put_latest_lock = threading.Lock()
         self._results = results
         self._condition = condition
 
@@ -153,6 +154,17 @@ class Handler:
     def Put(self, key, value):
         logger.debug(f"RPC: Put({key.hex()}, ...)")
         self._db.put(key, value)
+
+    def PutLatest(self, key, search_key, value):
+        key_hex = key.hex()
+        logger.debug(f"RPC: PutLatest({key_hex}, {search_key}, ...)")
+        with self._put_latest_lock:
+            current_search_key = self._db.get(f'latest:{key_hex}')
+            if current_search_key is not None:
+                if int(current_search_key) > search_key:
+                    return
+            self._db.put(key, value)
+            self._db.put(f'latest:{key_hex}', search_key)
 
     def Add(self, key, value: BucketValue, name, search_key_min, search_key_max):
         logger.debug(f"RPC: Add({key.hex()}, {search_key_min}, {search_key_max}, ...)")
