@@ -57,7 +57,7 @@ def run():
     if args.bootstrap is not None:
         args.bootstrap = ','.split(args.bootstrap)
     if args.ksize is None:
-        args.ksize = int(math.log2(args.peers))
+        args.ksize = max(1, int(math.log2(args.peers)))
 
     for i in range(args.peers):
         peer_args = copy.copy(args)
