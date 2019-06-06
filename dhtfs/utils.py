@@ -24,7 +24,7 @@ __all__ = ['DEFAULT_TREE_DEPTH',
 # Tree depth and maximal key for one-year period with millisecond granularity
 DEFAULT_TREE_DEPTH = 35
 DEFAULT_SEARCH_KEY_MAX = 34359738368
-DEFAULT_BUCKET_SIZE = 5
+DEFAULT_BUCKET_SIZE = 20
 
 DEFAULT_HOST = '127.0.0.1'
 DEFAULT_PORT = 9090
