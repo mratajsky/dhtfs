@@ -34,13 +34,6 @@ class Handler:
         logger.info(f"RPC: FindClosestPeers({key.hex()})")
         return self._find_closest_peers(key)
 
-    def FindKey(self, ident, search_key):
-        logger.info(f"RPC: FindKey({ident}, {search_key})")
-        key = self._lookup(ident, search_key)
-        logger.debug(f'Found key: {key}')
-        return digest(key)
-
-
     def _find_closest_peers(self, key):
         ident = threading.get_ident()
         # Ask the DHT process to do the lookup and use the thread identifier to
@@ -50,6 +43,12 @@ class Handler:
 
         # The nodes returned are instances of kademlia.node.Node
         return [Peer(n.ip, n.port) for n in result]
+
+    def FindKey(self, ident, search_key):
+        logger.info(f"RPC: FindKey({ident}, {search_key})")
+        key = self._lookup(ident, search_key)
+        logger.debug(f'RPC: FindKey({ident}, {search_key}) -> {key}')
+        return digest(key)
 
     def _find_search_keys(self, key):
         closest = self._find_closest_peers(key)
@@ -78,7 +77,7 @@ class Handler:
                 upper_bound = len(prefix)
             else:
                 key_min, key_max = bucket_keys.search_key_min, bucket_keys.search_key_max
-                if(search_key >= key_min and search_key < key_max):
+                if search_key >= key_min and search_key < key_max:
                     return dht_key
                 lower_bound = len(next_naming_func(prefix, label))
 
@@ -101,8 +100,10 @@ class Handler:
         for x in bucket.values:
             if x.search_key < midPoint:
                 bucketLeft.values.append(x)
+            elif x.search_key < bucket.search_key_max:
+                bucketRight.values.append(x)
             else:
-                bucketRight.values.append(x) 
+                logger.error(f'Error: key {x.search_key} in a wrong bucket: {bucket.search_key_min}-{bucket.search_key_max}')
 
         label = get_label(bucket.search_key_min, bucket.search_key_max)
   
@@ -159,11 +160,12 @@ class Handler:
             bucket = self._db.get(key)
             if bucket is not None:
                 bucket = thrift_unserialize(bucket, Bucket())
-                # TODO: fix splitting full atomic buckets
                 if (bucket.search_key_min + 1) >= bucket.search_key_max:
+                    logger.warning(f'Storing search key {value.search_key} in a full atomic bucket')
                     return
-                print(f'Storing {value.search_key}/{name} in {bucket.search_key_min} {bucket.search_key_max}')
-                 # TODO: this is not total ordering
+                if value.search_key < bucket.search_key_min or value.search_key >= bucket.search_key_max:
+                    raise StorageException(500, 'Trying to add to a wrong bucket')
+
                 self.insort_right(bucket.values, value)
                 if len(bucket.values) > DEFAULT_BUCKET_SIZE:
                     bucket = self.bucketSplitter(bucket, name)                    
@@ -171,7 +173,7 @@ class Handler:
                 bucket = Bucket(search_key_min=0,
                                 search_key_max=DEFAULT_SEARCH_KEY_MAX,
                                 values=[value])
-                print(f'Storing {value.search_key}/{name} in {bucket.search_key_min} {bucket.search_key_max}')
+                logger.debug(f'Storing {value.search_key}/{name} in {bucket.search_key_min}-{bucket.search_key_max}')
             self._db.put(key, thrift_serialize(bucket))
 
     def Get(self, key):
@@ -188,7 +190,6 @@ class Handler:
         if label == bLabel: # Stopping condition
                 return
         else:
-            print(f'bLabel == {bLabel}, label == {label}')
             label = bLabel
 
         dht_key = digest(f'{name}:{bLabel}')
@@ -213,7 +214,7 @@ class Handler:
                     nextBucket = thrift_unserialize(client.Get(dht_key), Bucket())
                     break
                 except:
-                    print(f"Latest MAX ERROR !!! {peer.port} {name}:{naming_func(bLabel)}")
+                    logger.error(f'Error: GetLatestMax: {peer.port} {name}:{naming_func(bLabel)}')
                     pass
 
         if nextBucket is not None:
@@ -222,12 +223,13 @@ class Handler:
             else:
                 return self.LatestMaxRecursiveBackwards(nextBucket, name)
         else:
-            print("LATEST MAX: MISSING BUCKET!!")
+            logger.error('Error: GetLatestMax: Missing bucket')
             return
 
     def GetLatestMax(self, name, search_key_max):
+        logger.info(f"RPC: GetLatestMax({name}, {search_key_max})")
         label = self._lookup(name, search_key_max)
-        print(f'Lates Max  key: {name}   Range label:  {label}')
+        logger.debug(f'GetLatestMax: key {name} -> {label}')
         dht_key = digest(label)
         closest = self._find_closest_peers(dht_key)
         bucket = None
@@ -235,14 +237,13 @@ class Handler:
             client = Client(peer.host, peer.port)
             client.connect()
             try:
-                print(f'Get Latest Max on {peer.host}:{peer.port}')
                 bucket = client.Get(dht_key)
                 if bucket is not None:
                     bucket = thrift_unserialize(bucket, Bucket())      
             except StorageException:
                 pass
         if bucket is None:
-            print('Bucket is EMPTY!!!!!!!')
+            logger.info(f'GetLatestMax: Bucket {name}/{search_key_max} is empty')
             return
         for value in reversed(bucket.values):
             if value.search_key <= search_key_max:
@@ -289,7 +290,7 @@ class Handler:
                     except:
                         pass
                 if nextBucket is None:
-                    print(f"NOT GOOD, Recursive forward ERROR!!! {peer.port} {name}:{naming_func(bLabel)}")
+                    logger.error(f'Error: Recursive forward: {peer.port} {name}:{naming_func(bLabel)}')
                     return result
                 else:
                     result = result + self.RangeRecursiveForward(nextBucket,name,inteval[0],inteval[1]-1)
@@ -316,9 +317,9 @@ class Handler:
                             nextBucket = thrift_unserialize(client.Get(dht_key), Bucket())
                             break
                         except:
-                            print(f"NOT GOOD, Recursive forward ERROR 2  !!! {peer.port} {name}:{naming_func(bLabel)}")
+                            logger.error(f'Error: Recursive forward/2: {peer.port} {name}:{naming_func(bLabel)}')
                             pass
-                result = result + self.RangeRecursiveForward(nextBucket,name,max(inteval[0],search_key_min),min(inteval[1] - 1, search_key_max))
+                result = result + self.RangeRecursiveForward(nextBucket, name, max(inteval[0],search_key_min), min(inteval[1] - 1, search_key_max))
                 return result
 
     def GetRange(self, name, search_key_min, search_key_max): 
@@ -330,14 +331,13 @@ class Handler:
             client = Client(peer.host, peer.port)
             client.connect()
             try:
-                print(f'GetRange on {peer.host}:{peer.port}')
                 bucket = client.Get(dht_key)
                 if bucket is not None:
                     bucket = thrift_unserialize(bucket, Bucket())      
             except StorageException:
                 pass
         if bucket is None:
-            print('Bucket is EMPTY!!!!!!!')
+            logger.debug(f'GetRange: Bucket {name}/{search_key_min}/{search_key_max} is empty')
             return []
         return self.RangeRecursiveForward(bucket, name, search_key_min, search_key_max)
  
