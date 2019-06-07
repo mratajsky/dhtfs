@@ -60,6 +60,8 @@ def parse_args():
                          help='enable debugging in dhtfs-fuse')
     cparser.add_argument('-e', '--exec', type=str,
                          help='custom path to the dhtfs-fuse executable')
+    cparser.add_argument('-f', '--foreground', action='store_true',
+                         help='stay in foreground even without -d')
     cparser.add_argument('-s', '--snapshot-period', type=int,
                          help='interval in seconds for periodic snapshotting')
     cparser.set_defaults(name=defaults.name)
@@ -167,10 +169,12 @@ def mount(args):
         '-o', f'port={args.port}',
         '-o', f'name={args.name}',
     ]
-    if args.cache is not None:
-        fuse_args.extend(['-o', f'cache={args.cache}'])
+    if args.foreground:
+        fuse_args.append('-f')
     if args.at is not None:
         fuse_args.extend(['-o', f'snapshot={int(args.at.timestamp()) * 1000}'])
+    if args.cache is not None:
+        fuse_args.extend(['-o', f'cache={args.cache}'])
     if args.snapshot_period is not None:
         fuse_args.extend(['-o', f'snapshot_period={args.snapshot_period}'])
     env = os.environ.copy()
