@@ -53,8 +53,6 @@ def parse_args():
                          help=f'file system name (default: {defaults.name})')
     cparser.add_argument('-a', '--at', type=dateutil_parse,
                          help='date and time of the file system snapshot')
-    cparser.add_argument('-b', '--benchmark', action='store_true',
-                         help='enable benchmarking')
     cparser.add_argument('-c', '--cache', type=str,
                          help='path to the caching storage')
     cparser.add_argument('-d', '--debug', action='store_true',
@@ -168,8 +166,6 @@ def mount(args):
         '-o', f'port={args.port}',
         '-o', f'name={args.name}',
     ]
-    if args.benchmark:
-        fuse_args.extend(['-b'])
     if args.cache is not None:
         fuse_args.extend(['-o', f'cache={args.cache}'])
     if args.at is not None:
