@@ -176,7 +176,7 @@ class Handler:
                     logger.warning(f'Storing search key {value.search_key} in a full atomic bucket')
                     return
                 if value.search_key < bucket.search_key_min or value.search_key >= bucket.search_key_max:
-                    raise StorageException(500, 'Trying to add to a wrong bucket')
+                    raise StorageException(500, f'Trying to add key {value.search_key} to bucket {bucket.search_key_min}-{bucket.search_key_max}')
 
                 self.insort_right(bucket.values, value)
                 if len(bucket.values) > DEFAULT_BUCKET_SIZE:
@@ -263,13 +263,11 @@ class Handler:
 
         return self.LatestMaxRecursiveBackwards(bucket, name)
 
-    def RangeRecursiveForward(self, bucket, name, search_key_min, search_key_max):
+    def _get_range_recursive_forward(self, bucket, name, search_key_min, search_key_max, result):
         label = get_label(bucket.search_key_min, bucket.search_key_max)
-        result = []
         for item in bucket.values:
             if item.search_key >= search_key_min and item.search_key <= search_key_max:
-                result = result + [item]
-
+                result.append(item)
         if label[-1] == '1' and label[-2] == '1':
             leftwards = True
         else:
@@ -280,18 +278,19 @@ class Handler:
                 bLabel = get_left_neighbour(label)
             else:
                 bLabel = get_right_neighbour(label)
-            
             if label == bLabel: # Stopping condition
-                return result
+                return
             else:
                 label = bLabel
 
-            inteval = get_label_range(bLabel)
-            if inteval[0] > search_key_max or inteval[1] <= search_key_min:  # intersection is NULL, stop recursion & iteration
-                return result
-            elif inteval[0] >= search_key_min and  inteval[1] - 1 <=  search_key_max:   # Range totaly covers the interval, recurse down, then iterate left/right
+            interval = get_label_range(bLabel)
+            if interval[0] > search_key_max or interval[1] <= search_key_min:
+                # intersection is NULL, stop recursion & iteration
+                return
+            elif interval[0] >= search_key_min and interval[1] - 1 <= search_key_max:
+                # Range totaly covers the interval, recurse down, then iterate left/right
                 dht_key = digest(f'{name}:{naming_func(bLabel)}')
-                peers = self.FindClosestPeers(dht_key)
+                peers = self._find_closest_peers(dht_key)
                 nextBucket = None
                 for peer in peers:
                     client = Client(peer.host, peer.port)
@@ -303,12 +302,12 @@ class Handler:
                         pass
                 if nextBucket is None:
                     logger.error(f'Error: Recursive forward: {peer.port} {name}:{naming_func(bLabel)}')
-                    return result
+                    return
                 else:
-                    result = result + self.RangeRecursiveForward(nextBucket,name,inteval[0],inteval[1]-1)
+                    self._get_range_recursive_forward(nextBucket, name, interval[0], interval[1]-1, result)
             else:   #range partially covers , recurse down, stop iterating
                 dht_key = digest(f'{name}:{bLabel}')
-                peers = self.FindClosestPeers(dht_key)
+                peers = self._find_closest_peers(dht_key)
                 nextBucket = None
                 for peer in peers:
                     client = Client(peer.host, peer.port)
@@ -320,7 +319,7 @@ class Handler:
                         pass
                 if nextBucket is None:
                     dht_key = digest(f'{name}:{naming_func(bLabel)}')
-                    peers = self.FindClosestPeers(dht_key)
+                    peers = self._find_closest_peers(dht_key)
                     nextBucket = None
                     for peer in peers:
                         client = Client(peer.host, peer.port)
@@ -331,8 +330,7 @@ class Handler:
                         except:
                             logger.error(f'Error: Recursive forward/2: {peer.port} {name}:{naming_func(bLabel)}')
                             pass
-                result = result + self.RangeRecursiveForward(nextBucket, name, max(inteval[0],search_key_min), min(inteval[1] - 1, search_key_max))
-                return result
+                self._get_range_recursive_forward(nextBucket, name, max(interval[0], search_key_min), min(interval[1] - 1, search_key_max), result)
 
     def GetRange(self, name, search_key_min, search_key_max): 
         label = self._lookup(name, search_key_min)
@@ -345,14 +343,17 @@ class Handler:
             try:
                 bucket = client.Get(dht_key)
                 if bucket is not None:
-                    bucket = thrift_unserialize(bucket, Bucket())      
+                    bucket = thrift_unserialize(bucket, Bucket())
+                    break
             except StorageException:
                 pass
         if bucket is None:
             logger.debug(f'GetRange: Bucket {name}/{search_key_min}/{search_key_max} is empty')
             return []
-        return self.RangeRecursiveForward(bucket, name, search_key_min, search_key_max)
- 
+        result = []
+        self._get_range_recursive_forward(bucket, name, search_key_min, search_key_max, result)
+        return result
+
     def _get_nonempty_bucket(self, key) -> Bucket:
         bucket = self._db.get(key)
         if bucket is not None:
