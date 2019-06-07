@@ -54,7 +54,8 @@ struct DirEntryDiff {
 
 struct DirData {
     1: map<string, DirEntry> entries,
-    2: list<binary> indirect
+    2: i64 count,
+    3: list<binary> indirect
 }
 
 struct DirDataIndirect {

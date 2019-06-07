@@ -533,12 +533,14 @@ class DirData(object):
     """
     Attributes:
      - entries
+     - count
      - indirect
     """
 
 
-    def __init__(self, entries=None, indirect=None,):
+    def __init__(self, entries=None, count=None, indirect=None,):
         self.entries = entries
+        self.count = count
         self.indirect = indirect
 
     def read(self, iprot):
@@ -563,6 +565,11 @@ class DirData(object):
                 else:
                     iprot.skip(ftype)
             elif fid == 2:
+                if ftype == TType.I64:
+                    self.count = iprot.readI64()
+                else:
+                    iprot.skip(ftype)
+            elif fid == 3:
                 if ftype == TType.LIST:
                     self.indirect = []
                     (_etype31, _size28) = iprot.readListBegin()
@@ -590,8 +597,12 @@ class DirData(object):
                 viter35.write(oprot)
             oprot.writeMapEnd()
             oprot.writeFieldEnd()
+        if self.count is not None:
+            oprot.writeFieldBegin('count', TType.I64, 2)
+            oprot.writeI64(self.count)
+            oprot.writeFieldEnd()
         if self.indirect is not None:
-            oprot.writeFieldBegin('indirect', TType.LIST, 2)
+            oprot.writeFieldBegin('indirect', TType.LIST, 3)
             oprot.writeListBegin(TType.STRING, len(self.indirect))
             for iter36 in self.indirect:
                 oprot.writeBinary(iter36)
@@ -935,7 +946,8 @@ all_structs.append(DirData)
 DirData.thrift_spec = (
     None,  # 0
     (1, TType.MAP, 'entries', (TType.STRING, 'UTF8', TType.STRUCT, [DirEntry, None], False), None, ),  # 1
-    (2, TType.LIST, 'indirect', (TType.STRING, 'BINARY', False), None, ),  # 2
+    (2, TType.I64, 'count', None, None, ),  # 2
+    (3, TType.LIST, 'indirect', (TType.STRING, 'BINARY', False), None, ),  # 3
 )
 all_structs.append(DirDataIndirect)
 DirDataIndirect.thrift_spec = (
