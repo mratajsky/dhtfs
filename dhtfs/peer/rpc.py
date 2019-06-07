@@ -172,7 +172,7 @@ class Handler:
             bucket = self._db.get(key)
             if bucket is not None:
                 bucket = thrift_unserialize(bucket, Bucket())
-                if (bucket.search_key_min + 1) >= bucket.search_key_max:
+                if (bucket.search_key_min + 1) >= bucket.search_key_max and len(bucket.values) >= DEFAULT_BUCKET_SIZE:
                     logger.warning(f'Storing search key {value.search_key} in a full atomic bucket')
                     return
                 if value.search_key < bucket.search_key_min or value.search_key >= bucket.search_key_max:
