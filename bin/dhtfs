@@ -2,6 +2,7 @@
 
 import argparse
 import datetime
+import importlib
 import logging
 import os
 import random
@@ -71,14 +72,14 @@ def parse_args():
     # DHT commands
     cparser = commands.add_parser('get-key')
     cparser.add_argument('key', type=str, help='DHT key string to lookup')
-    cparser.add_argument('-b', '--bucket', action='store_true',
-                         help='parse value as a bucket')
+    cparser.add_argument('-t', '--type', type=str,
+                         help='parse value as the given type (e.g. Bucket)')
     cparser.set_defaults(command='dht-get', get='key', hash=False)
 
     cparser = commands.add_parser('get-key-hash')
     cparser.add_argument('key', type=str, help='DHT key hash to lookup')
-    cparser.add_argument('-b', '--bucket', action='store_true',
-                         help='parse value as a bucket')
+    cparser.add_argument('-t', '--type', type=str,
+                         help='parse value as the given type (e.g. Bucket)')
     cparser.set_defaults(command='dht-get', get='key', hash=True)
 
     cparser = commands.add_parser('get-filesystem')
@@ -230,12 +231,20 @@ def run():
                 logging.info(f'DHT key: {args.key} -> {kd.hex()}')
 
             value = get_value_digest(args.host, args.port, kd)
-            if args.bucket:
+            if args.type:
+                obj = None
+                for package in ('dhtfs.thrift.metadata', 'dhtfs.thrift.rpc'):
+                    ttypes = importlib.import_module(f'{package}.ttypes')
+                    if hasattr(ttypes, args.type):
+                        obj = getattr(ttypes, args.type)()
+                        break
+                if obj is None:
+                    raise Exception(f'Invalid type: {args.type}')
                 try:
-                    bucket_value = thrift_unserialize(value, Bucket())
-                    value = bucket_value
+                    parsed_value = thrift_unserialize(value, obj)
+                    value = parsed_value
                 except:
-                    print("Value is not a bucket")
+                    print(f'Failed to parse value as {args.type}')
 
         if value is not None:
             print(value)
