@@ -570,13 +570,8 @@ class DirData(object):
                 else:
                     iprot.skip(ftype)
             elif fid == 3:
-                if ftype == TType.LIST:
-                    self.indirect = []
-                    (_etype31, _size28) = iprot.readListBegin()
-                    for _i32 in range(_size28):
-                        _elem33 = iprot.readBinary()
-                        self.indirect.append(_elem33)
-                    iprot.readListEnd()
+                if ftype == TType.STRING:
+                    self.indirect = iprot.readBinary()
                 else:
                     iprot.skip(ftype)
             else:
@@ -592,9 +587,9 @@ class DirData(object):
         if self.entries is not None:
             oprot.writeFieldBegin('entries', TType.MAP, 1)
             oprot.writeMapBegin(TType.STRING, TType.STRUCT, len(self.entries))
-            for kiter34, viter35 in self.entries.items():
-                oprot.writeString(kiter34.encode('utf-8') if sys.version_info[0] == 2 else kiter34)
-                viter35.write(oprot)
+            for kiter28, viter29 in self.entries.items():
+                oprot.writeString(kiter28.encode('utf-8') if sys.version_info[0] == 2 else kiter28)
+                viter29.write(oprot)
             oprot.writeMapEnd()
             oprot.writeFieldEnd()
         if self.count is not None:
@@ -602,11 +597,8 @@ class DirData(object):
             oprot.writeI64(self.count)
             oprot.writeFieldEnd()
         if self.indirect is not None:
-            oprot.writeFieldBegin('indirect', TType.LIST, 3)
-            oprot.writeListBegin(TType.STRING, len(self.indirect))
-            for iter36 in self.indirect:
-                oprot.writeBinary(iter36)
-            oprot.writeListEnd()
+            oprot.writeFieldBegin('indirect', TType.STRING, 3)
+            oprot.writeBinary(self.indirect)
             oprot.writeFieldEnd()
         oprot.writeFieldStop()
         oprot.writeStructEnd()
@@ -650,12 +642,12 @@ class DirDataIndirect(object):
             if fid == 1:
                 if ftype == TType.MAP:
                     self.entries = {}
-                    (_ktype38, _vtype39, _size37) = iprot.readMapBegin()
-                    for _i41 in range(_size37):
-                        _key42 = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
-                        _val43 = DirEntry()
-                        _val43.read(iprot)
-                        self.entries[_key42] = _val43
+                    (_ktype31, _vtype32, _size30) = iprot.readMapBegin()
+                    for _i34 in range(_size30):
+                        _key35 = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
+                        _val36 = DirEntry()
+                        _val36.read(iprot)
+                        self.entries[_key35] = _val36
                     iprot.readMapEnd()
                 else:
                     iprot.skip(ftype)
@@ -677,9 +669,9 @@ class DirDataIndirect(object):
         if self.entries is not None:
             oprot.writeFieldBegin('entries', TType.MAP, 1)
             oprot.writeMapBegin(TType.STRING, TType.STRUCT, len(self.entries))
-            for kiter44, viter45 in self.entries.items():
-                oprot.writeString(kiter44.encode('utf-8') if sys.version_info[0] == 2 else kiter44)
-                viter45.write(oprot)
+            for kiter37, viter38 in self.entries.items():
+                oprot.writeString(kiter37.encode('utf-8') if sys.version_info[0] == 2 else kiter37)
+                viter38.write(oprot)
             oprot.writeMapEnd()
             oprot.writeFieldEnd()
         if self.valid is not None:
@@ -947,7 +939,7 @@ DirData.thrift_spec = (
     None,  # 0
     (1, TType.MAP, 'entries', (TType.STRING, 'UTF8', TType.STRUCT, [DirEntry, None], False), None, ),  # 1
     (2, TType.I64, 'count', None, None, ),  # 2
-    (3, TType.LIST, 'indirect', (TType.STRING, 'BINARY', False), None, ),  # 3
+    (3, TType.STRING, 'indirect', 'BINARY', None, ),  # 3
 )
 all_structs.append(DirDataIndirect)
 DirDataIndirect.thrift_spec = (
